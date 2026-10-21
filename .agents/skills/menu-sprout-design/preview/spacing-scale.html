@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Spacing scale</title>
+<link rel="stylesheet" href="card.css">
+<style>
+  .ruler { display: flex; flex-direction: column; gap: 6px; }
+  .tick { display: flex; align-items: center; gap: 12px; }
+  .bar { height: 12px; background: var(--ink-700); }
+  .tick .lbl { width: 100px; font-size: 11px; color: var(--ink-soft); }
+</style>
+</head>
+<body>
+<div class="card">
+  <span class="label">spacing · 2 / 4 / 6 / 8 / 12 / 16 / 20 / 24 / 32 · tight</span>
+  <div class="ruler">
+    <div class="tick"><span class="lbl">--space-1 · 2</span> <div class="bar" style="width:2px"></div></div>
+    <div class="tick"><span class="lbl">--space-2 · 4</span> <div class="bar" style="width:4px"></div></div>
+    <div class="tick"><span class="lbl">--space-3 · 6</span> <div class="bar" style="width:6px"></div></div>
+    <div class="tick"><span class="lbl">--space-4 · 8</span> <div class="bar" style="width:8px"></div></div>
+    <div class="tick"><span class="lbl">--space-5 · 12</span><div class="bar" style="width:12px"></div></div>
+    <div class="tick"><span class="lbl">--space-6 · 16</span><div class="bar" style="width:16px"></div></div>
+    <div class="tick"><span class="lbl">--space-7 · 20</span><div class="bar" style="width:20px"></div></div>
+    <div class="tick"><span class="lbl">--space-8 · 24</span><div class="bar" style="width:24px"></div></div>
+    <div class="tick"><span class="lbl">--space-9 · 32</span><div class="bar" style="width:32px"></div></div>
+  </div>
+</div>
+</body>
+</html>

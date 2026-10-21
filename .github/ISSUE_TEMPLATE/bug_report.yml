@@ -1,0 +1,77 @@
+name: Bug report
+description: Something went wrong with Menu Sprout
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug.
+        The most useful details are how Menu Sprout was launched, which agent you were using, and whether this happened in source mode or the packaged app.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: A short description of what you expected and what actually happened.
+      placeholder: I asked Menu Sprout to add a CPU widget, but the widget never appeared after the agent finished.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: How to reproduce
+      description: Include the prompt, launch mode, and any relevant steps.
+      placeholder: |
+        1. Run `pnpm dev` or launch the packaged app.
+        2. Ask `add a CPU temperature widget`.
+        3. Click Keep.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: launch-mode
+    attributes:
+      label: Launch mode
+      options:
+        - Packaged app
+        - pnpm dev
+        - tests
+        - other / not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: agent
+    attributes:
+      label: Agent
+      options:
+        - claude
+        - codex
+        - pi
+        - acpx-mock
+        - other / not sure
+    validations:
+      required: true
+
+  - type: input
+    id: platform
+    attributes:
+      label: macOS and Node version
+      description: Include `node --version` if running from source.
+      placeholder: macOS 15.3 / Node v24.13.1
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or error output
+      description: Paste relevant terminal output, app errors, or agent-turn log excerpts.
+      render: text
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Screenshots, generated extension files, or hunches that may help.

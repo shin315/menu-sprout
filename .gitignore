@@ -1,0 +1,78 @@
+# Lavish local review artifacts
+.lavish/
+
+# Dependencies
+node_modules/
+
+# Package manager artifacts
+.pnpm-store/
+
+# Build outputs
+dist/
+dist-electron/
+out/
+release/
+build/
+coverage/
+.vite/
+
+# Electron packaging outputs
+*.asar
+*.dmg
+*.pkg
+*.exe
+*.AppImage
+*.snap
+*.deb
+*.rpm
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Runtime data and caches
+.cache/
+extensions-dev/
+.temp/
+.tmp/
+
+# Source-mode runtime state (userDataDir is the repo root in dev/source mode).
+preferences.json
+agents.json
+menu-sprout.db
+tmp/
+temp/
+
+# Environment and local config
+.env
+.env.*
+!.env.example
+*.local
+
+# TypeScript
+*.tsbuildinfo
+
+# Test artifacts
+playwright-report/
+test-results/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*.swo
+
+# macOS signing and credentials
+*.p12
+*.mobileprovision
+.no-mistakes/evidence/

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Radius scale</title>
+<link rel="stylesheet" href="card.css">
+<style>
+  .row { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
+  .box {
+    width: 64px; height: 64px;
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+  }
+  .col { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .col .swatch-name, .col .swatch-hex { text-align: center; }
+</style>
+</head>
+<body>
+<div class="card">
+  <span class="label">radius · sharper corners than the rest of the design world</span>
+  <div class="row">
+    <div class="col"><div class="box" style="border-radius:2px"></div><span class="swatch-name">2 · xs</span></div>
+    <div class="col"><div class="box" style="border-radius:4px"></div><span class="swatch-name">4 · sm</span></div>
+    <div class="col"><div class="box" style="border-radius:6px"></div><span class="swatch-name">6 · md</span></div>
+    <div class="col"><div class="box" style="border-radius:8px"></div><span class="swatch-name">8 · lg</span></div>
+    <div class="col"><div class="box" style="border-radius:10px"></div><span class="swatch-name">10 · xl · popover</span></div>
+    <div class="col"><div class="box" style="border-radius:4px;height:28px;width:96px"></div><span class="swatch-name">4 · sm · buttons</span></div>
+  </div>
+  <p class="note">Small radii by design. Popover outer = 10. Cards = 8. Shared production buttons = 4. Prototype/app-shell pills are exceptions for tight terminal affordances.</p>
+</div>
+</body>
+</html>

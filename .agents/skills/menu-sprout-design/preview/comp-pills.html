@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Status chips</title>
+<link rel="stylesheet" href="card.css">
+<style>
+  .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .chip::before {
+    content: "";
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 6px currentColor;
+  }
+  .live    { color: var(--signal-live); }
+  .pending { color: var(--signal-pending); }
+  .danger  { color: var(--signal-error); }
+  .muted   { color: var(--ink-soft); }
+  .muted::before { box-shadow: none; opacity: 0.6; }
+
+  .src {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+  }
+  .src.mock { border-style: dashed; }
+</style>
+</head>
+<body>
+<div class="card">
+  <span class="label">status chips · dot + word · the only decorated affordance</span>
+  <div class="row">
+    <span class="chip live">live</span>
+    <span class="chip live">kept</span>
+    <span class="chip pending">needs review</span>
+    <span class="chip danger">refused</span>
+    <span class="chip muted">idle</span>
+  </div>
+  <span class="label">source labels · square tag, all-caps</span>
+  <div class="row">
+    <span class="src">oauth</span>
+    <span class="src">cli</span>
+    <span class="src">web</span>
+    <span class="src mock">mock</span>
+  </div>
+</div>
+</body>
+</html>

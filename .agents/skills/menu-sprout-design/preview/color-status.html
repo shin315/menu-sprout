@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Signals — live / pending / error</title>
+<link rel="stylesheet" href="card.css">
+<style>
+  .row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .demo {
+    background: var(--bg-card);
+    border: 1px solid var(--line-faint);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .demo .top { font-size: 12px; color: var(--ink-strong); }
+  .demo .bot { font-size: 11px; color: var(--ink-soft); }
+  .pending { color: var(--signal-pending); }
+  .error   { color: var(--signal-error); }
+</style>
+</head>
+<body>
+<div class="card">
+  <span class="label">signals · three only · color + word, never the icon alone</span>
+  <div class="swatch-grid">
+    <div class="swatch"><div class="swatch-chip" style="background:#6AE3B6"></div><span class="swatch-name">--signal-live</span><span class="swatch-hex">#6AE3B6</span></div>
+    <div class="swatch"><div class="swatch-chip" style="background:#FFD86B"></div><span class="swatch-name">--signal-pending</span><span class="swatch-hex">#FFD86B</span></div>
+    <div class="swatch"><div class="swatch-chip" style="background:#FF6A7A"></div><span class="swatch-name">--signal-error</span><span class="swatch-hex">#FF6A7A</span></div>
+  </div>
+  <div class="row">
+    <div class="demo">
+      <div class="status">live</div>
+      <span class="top">kept</span>
+      <span class="bot">ready for the next request</span>
+    </div>
+    <div class="demo">
+      <div class="status warn">pending</div>
+      <span class="top">review needed</span>
+      <span class="bot">keep or undo before the next request</span>
+    </div>
+    <div class="demo">
+      <div class="status danger">refused</div>
+      <span class="top">finish this change first</span>
+      <span class="bot">keep or undo before asking again</span>
+    </div>
+  </div>
+</div>
+</body>
+</html>

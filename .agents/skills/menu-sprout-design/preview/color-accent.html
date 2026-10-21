@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Signal — mint</title>
+<link rel="stylesheet" href="card.css">
+<style>
+  .row { display: flex; gap: 12px; align-items: stretch; }
+  .demo {
+    flex: 1;
+    background: var(--bg-card);
+    border: 1px solid var(--line-faint);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--signal-live);
+    box-shadow: var(--signal-live-glow);
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <span class="label">signal · mint · live, success, ok</span>
+  <div class="swatch-grid">
+    <div class="swatch"><div class="swatch-chip" style="background:#6AE3B6"></div><span class="swatch-name">--signal-live</span><span class="swatch-hex">#6AE3B6</span></div>
+    <div class="swatch"><div class="swatch-chip" style="background:rgba(106,227,182,0.10);border:1px solid rgba(106,227,182,0.25)"></div><span class="swatch-name">--signal-live-tint</span><span class="swatch-hex">10% alpha</span></div>
+  </div>
+  <div class="row">
+    <div class="demo">
+      <span class="label">running · 3s</span>
+      <div style="display:flex;align-items:center;gap:8px;color:var(--ink-strong);font-size:13px"><span class="dot"></span> writing the widget</div>
+    </div>
+    <div class="demo">
+      <span class="label">latest change</span>
+      <div style="display:flex;align-items:center;gap:8px;color:var(--signal-live);font-size:13px"><span class="dot"></span> kept</div>
+    </div>
+  </div>
+  <p class="note">Mint is the only signal color. Used as a 5–8px dot with a soft glow, or as a single word at 11px tracked-caps. Never as a button fill, never as a background of more than 10% alpha.</p>
+</div>
+</body>
+</html>

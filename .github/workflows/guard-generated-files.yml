@@ -1,0 +1,82 @@
+name: Guard generated files
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+    # Never create a run for a release-please PR. The job-level author exemption
+    # below cannot do this: it is evaluated inside a run, and a GITHUB_TOKEN PR's
+    # run is created in action_required and never starts.
+    paths-ignore:
+      - .release-please-manifest.json
+      - CHANGELOG.md
+      - package.json
+
+permissions:
+  contents: read
+
+concurrency:
+  group: guard-generated-files-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Generated files must not be committed
+    runs-on: ubuntu-latest
+    if: >-
+      github.event.pull_request.user.login != 'release-please[bot]' &&
+      (github.event.pull_request.user.login != 'github-actions[bot]' ||
+      !startsWith(github.event.pull_request.head.ref, 'release-please--'))
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check PR does not commit generated artifacts
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -eu
+          files=$(git diff --name-only "${BASE_SHA}...${HEAD_SHA}")
+          name_status=$(git diff --name-status "${BASE_SHA}...${HEAD_SHA}")
+
+          violated=""
+          for path in out release .cache extensions-dev; do
+            if printf '%s\n' "$files" | grep -qE "^${path}(/|$)"; then
+              violated="${violated} ${path}/"
+            fi
+          done
+
+          bootstrap_release_metadata=false
+          if ! git show "${BASE_SHA}:release-please-config.json" 2>/dev/null | jq -e 'has("bootstrap-sha")' >/dev/null 2>&1 &&
+            git show "${HEAD_SHA}:release-please-config.json" 2>/dev/null | jq -e 'has("bootstrap-sha")' >/dev/null 2>&1; then
+            bootstrap_release_metadata=true
+          fi
+
+          if [ "$bootstrap_release_metadata" = false ]; then
+            for path in CHANGELOG.md; do
+              if printf '%s\n' "$files" | grep -qxF -- "$path"; then
+                violated="${violated} ${path}"
+              fi
+            done
+
+            manifest_status=$(printf '%s\n' "$name_status" | awk '$2 == ".release-please-manifest.json" { print $1; exit }')
+            config_status=$(printf '%s\n' "$name_status" | awk '$2 == "release-please-config.json" { print $1; exit }')
+            if [ -n "$manifest_status" ] && ! { [ "$manifest_status" = "A" ] && [ "$config_status" = "A" ]; }; then
+              violated="${violated} .release-please-manifest.json"
+            fi
+          fi
+
+          if [ -n "$violated" ]; then
+            {
+              echo "::error::This PR modifies generated or local-only files:${violated}"
+              echo
+              echo "Do not commit build output, release artifacts, runtime caches, dev extension workspaces, or generated release metadata."
+              echo "See CONTRIBUTING.md for the full contributor workflow."
+            } >&2
+            exit 1
+          fi
+
+          echo "No generated artifacts modified. OK."

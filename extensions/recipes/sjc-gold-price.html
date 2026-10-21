@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en" data-theme="wireframe">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SJC Gold Price Widget Recipe</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  </head>
+  <body class="bg-base-200 text-base-content">
+    <main class="mx-auto max-w-4xl space-y-5 p-6 text-base leading-7 sm:p-10 [&_code]:text-sm [&_h2]:mb-3 [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:text-lg [&_h3]:font-semibold [&_li]:mb-1 [&_li]:leading-7 [&_ol]:list-decimal [&_ol]:space-y-1 [&_ol]:pl-6 [&_p]:mb-2 [&_p]:leading-7 [&_pre]:my-3 [&_pre_code]:text-sm [&_section]:space-y-3 [&_table]:text-sm [&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:pl-6">
+      <h1 class="text-3xl font-bold tracking-tight">SJC Gold Price Widget Recipe</h1>
+
+      <section class="card border border-base-300 bg-base-100 shadow-sm p-6">
+        <h2>Capability</h2>
+        <p>Source real-time SJC gold prices in Vietnam (giá vàng SJC) for a menu-sprout widget.</p>
+        <p>Use real gold market data only. When real price data is temporarily unreachable, return an explicit unavailable error or retain the last successful snapshot marked stale. Do not fabricate mock numbers or fall back to simulated prices.</p>
+        <p><strong>Scope:</strong> this recipe specifies how to fetch, parse, and normalize live SJC gold rates. The UI should display standard Vietnamese labels (<code>Giá vàng SJC</code>, <code>Mua vào</code>, <code>Bán ra</code>, <code>Chênh lệch</code>) and support standard gold products such as SJC 1L-10L (vàng miếng 9999) and SJC Ring (vàng nhẫn 99.99).</p>
+        <p>This recipe is self-contained. Do not require external source code, websites, or implementation guides to complete it.</p>
+      </section>
+
+      <section class="card border border-base-300 bg-base-100 shadow-sm p-6">
+        <h2>Recommended Data Source Order</h2>
+        <table class="table table-zebra">
+          <thead>
+            <tr><th>Priority</th><th>Source</th><th>Use When</th><th>Expected Data</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td>Vang.Today REST JSON API (<code>https://www.vang.today/api/prices</code>)</td>
+              <td>Default live source. Free, no API key required, reliable JSON feed updated every 5 minutes.</td>
+              <td>Real-time buy/sell prices for SJC 9999 (<code>SJL1L10</code>), SJC Ring (<code>SJ9999</code>), DOJI, PNJ, and Bao Tin Minh Chau in VND per lượng.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card border border-base-300 bg-base-100 shadow-sm p-6">
+        <h2>Live API Details and Response Shapes</h2>
+        <p>Endpoint: <code>GET https://www.vang.today/api/prices</code> (or filtered: <code>https://www.vang.today/api/prices?type=SJL1L10</code>)</p>
+        <p>Request headers: standard <code>Accept: application/json</code> and a descriptive User-Agent.</p>
+        <p>Real live response sample captured from <code>https://www.vang.today/api/prices</code>:</p>
+        <pre class="mockup-code p-4 overflow-auto"><code>{
+  "success": true,
+  "timestamp": 1791046807,
+  "time": "00:00",
+  "date": "2026-10-04",
+  "count": 12,
+  "prices": {
+    "SJL1L10": {
+      "name": "SJC 9999",
+      "buy": 140500000,
+      "sell": 143500000,
+      "change_buy": 0,
+      "change_sell": 0,
+      "currency": "VND"
+    },
+    "SJ9999": {
+      "name": "SJC Ring",
+      "buy": 140000000,
+      "sell": 143000000,
+      "change_buy": 0,
+      "change_sell": 0,
+      "currency": "VND"
+    },
+    "BTSJC": {
+      "name": "Bao Tin SJC",
+      "buy": 139500000,
+      "sell": 143500000,
+      "change_buy": 0,
+      "change_sell": 0,
+      "currency": "VND"
+    }
+  }
+}</code></pre>
+        <p><strong>Value semantics and units:</strong></p>
+        <ul>
+          <li><strong>Unit:</strong> Prices are in VND per <em>lượng</em> (1 lượng = 1 cây = 10 chỉ = 37.5 grams).</li>
+          <li><strong>Numbers:</strong> <code>buy</code> and <code>sell</code> are integer numbers in VND (for example <code>140500000</code> represents 140,500,000 VND / lượng or 140.5 triệu VNĐ).</li>
+          <li><strong>Spread:</strong> Spread between buy and sell is computed as <code>sell - buy</code> (e.g. <code>143500000 - 140500000 = 3000000</code> VND).</li>
+          <li><strong>Key products:</strong> <code>SJL1L10</code> is SJC 1L-10L (vàng miếng 9999), the primary national benchmark. <code>SJ9999</code> is SJC nhẫn trơn (ring).</li>
+        </ul>
+
+        <h3>Vietnamese UI Labels</h3>
+        <table class="table table-zebra">
+          <thead>
+            <tr><th>English Concept</th><th>Vietnamese Label</th><th>Example Display</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Widget Title</td><td>Giá vàng SJC</td><td>Giá vàng SJC</td></tr>
+            <tr><td>SJC Bar Gold (1L - 10L)</td><td>Vàng miếng SJC 9999</td><td>140.50 tr - 143.50 tr</td></tr>
+            <tr><td>SJC Ring Gold</td><td>Vàng nhẫn SJC 99.99</td><td>140.00 tr - 143.00 tr</td></tr>
+            <tr><td>Buy Price</td><td>Mua vào</td><td>140,500,000 ₫</td></tr>
+            <tr><td>Sell Price</td><td>Bán ra</td><td>143,500,000 ₫</td></tr>
+            <tr><td>Spread</td><td>Chênh lệch</td><td>3,000,000 ₫</td></tr>
+            <tr><td>Last Updated</td><td>Cập nhật</td><td>00:00 04/10/2026</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Normalized TypeScript Shape</h3>
+        <pre class="mockup-code p-4 overflow-auto"><code>type GoldPriceItem = {
+  id: string;              // "sjc-1l-10l", "sjc-ring", "bt-sjc"
+  code: string;            // "SJL1L10", "SJ9999", etc.
+  name: string;            // "Vàng miếng SJC 9999", "Vàng nhẫn SJC 99.99"
+  buy: number;             // in VND (e.g. 140500000)
+  sell: number;            // in VND (e.g. 143500000)
+  spread: number;          // sell - buy
+  changeBuy?: number;
+  changeSell?: number;
+  currency: "VND";
+};
+
+type SjcGoldSnapshot = {
+  source: "vang-today";
+  items: GoldPriceItem[];
+  updatedAt: string;       // ISO timestamp or HH:mm DD/MM/YYYY
+  refreshedAt: string;     // ISO timestamp of fetch
+  stale: boolean;
+};</code></pre>
+      </section>
+
+      <section class="card border border-base-300 bg-base-100 shadow-sm p-6">
+        <h2>Implementation Contract</h2>
+        <p>All network fetching and JSON parsing belongs in <code>sjc-gold-price/server.ts</code> behind <code>window.menuSprout.capabilities.invoke("sjc-gold-price", "getGoldPrices", options)</code>. Do not call remote HTTP endpoints directly from renderer components.</p>
+        <p>The renderer widget lives in <code>sjc-gold-price/widget.tsx</code> and <code>sjc-gold-price/components.tsx</code>. It calls the server action on mount and during manual/scheduled refresh, and renders using <code>@menusprout/ui</code> components.</p>
+        <p>Refresh: export a <code>RefreshableMenuSproutWidget</code> with a 15-minute <code>viewRefreshIntervalMs</code> and a <code>refreshView</code> that calls <code>getGoldPrices</code>; the host also runs <code>refreshView</code> each time the popover opens. 15 minutes is the slowest acceptable visible interval. The source only updates every 5 minutes: if the last-good snapshot in <code>context.db</code> was fetched less than 5 minutes ago, return it instead of calling the API again. Do not add a background task unless the user explicitly asks for price monitoring while the popover is closed.</p>
+        <p>Durable data: the server action stores one last-good <code>SjcGoldSnapshot</code> in <code>context.db</code> (for example a single-row <code>sjc_gold_price_snapshot</code> table) after every successful fetch and reads it back on failure. Do not rely on module-scope variables for the last-good snapshot or the 5-minute guard; they reset on every code edit and app restart.</p>
+        <p>Server action response shape:</p>
+        <pre class="mockup-code p-4 overflow-auto"><code>type SjcGoldResult =
+  | { ok: true; data: SjcGoldSnapshot }
+  | { ok: false; error: string; sourceTried: string[] };</code></pre>
+        <p>Before reporting work done, inspect the real live API directly with curl, verify the response parsing with live market numbers, and test the widget in the dev environment.</p>
+      </section>
+
+      <section class="card border border-base-300 bg-base-100 shadow-sm p-6">
+        <h2>Error Handling</h2>
+        <ul>
+          <li>If the live API fails or times out, return the last-good snapshot from <code>context.db</code> marked <code>stale: true</code> when available.</li>
+          <li>If no previous snapshot is available and the live API fails, return <code>{ ok: false, error: "SJC gold price unavailable", sourceTried: ["vang-today"] }</code>.</li>
+          <li>Do not show mock numbers or placeholder prices when disconnected. Clearly indicate stale or offline state in the UI.</li>
+          <li>Set a reasonable HTTP request timeout of 8 to 10 seconds to avoid hanging the widget UI.</li>
+        </ul>
+      </section>
+
+      <section class="card border border-base-300 bg-base-100 shadow-sm p-6">
+        <h2>Security Constraints</h2>
+        <ul>
+          <li>Keep every network request in <code>sjc-gold-price/server.ts</code>; the renderer only calls <code>window.menuSprout.capabilities.invoke</code>.</li>
+          <li>The source is public and needs no API key, cookie, or account. Never add credentials, tokens, or browser cookies.</li>
+          <li>Store only the normalized <code>SjcGoldSnapshot</code> in <code>context.db</code>, never raw response bodies or request headers.</li>
+        </ul>
+      </section>
+
+      <section class="card border border-base-300 bg-base-100 shadow-sm p-6">
+        <h2>Interactive Demo</h2>
+        <div class="space-y-4">
+          <div class="flex items-center justify-between border-b border-base-300 pb-2">
+            <h3 class="font-bold text-lg">Giá Vàng SJC (Hà Nội / TP.HCM)</h3>
+            <span class="badge badge-success badge-sm">Trực tiếp</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Loại vàng</th>
+                  <th class="text-right">Mua vào (₫)</th>
+                  <th class="text-right">Bán ra (₫)</th>
+                  <th class="text-right">Chênh lệch</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="font-medium">SJC 9999 (1L - 10L)</td>
+                  <td class="text-right text-success font-semibold">140,500,000</td>
+                  <td class="text-right text-error font-semibold">143,500,000</td>
+                  <td class="text-right text-base-content/70">3,000,000</td>
+                </tr>
+                <tr>
+                  <td class="font-medium">Nhẫn SJC 99.99</td>
+                  <td class="text-right text-success font-semibold">140,000,000</td>
+                  <td class="text-right text-error font-semibold">143,000,000</td>
+                  <td class="text-right text-base-content/70">3,000,000</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="flex items-center justify-between text-xs text-base-content/60 pt-1">
+            <span>Đơn vị: VNĐ / Lượng</span>
+            <span>Cập nhật: 00:00 04/10/2026</span>
+          </div>
+          <p class="text-sm">Demo uses labeled real sample values. The shipped widget queries the live API via the server action and renders current market numbers.</p>
+        </div>
+      </section>
+
+      <section class="card border border-base-300 bg-base-100 shadow-sm p-6">
+        <h2>Acceptance Criteria</h2>
+        <ul>
+          <li>The extension exposes a <code>getGoldPrices</code> server action in <code>sjc-gold-price/server.ts</code> that fetches live SJC gold rates.</li>
+          <li>The server action queries <code>https://www.vang.today/api/prices</code> as the primary free, no-key JSON source.</li>
+          <li>Parsed data extracts SJC benchmark products (<code>SJL1L10</code>, <code>SJ9999</code>) and computes spread (<code>sell - buy</code>).</li>
+          <li>Prices are correctly typed as integer VND per lượng, and formatted legibly with thousands separators in the UI.</li>
+          <li>The UI uses authentic Vietnamese financial labels: <code>Giá vàng SJC</code>, <code>Mua vào</code>, <code>Bán ra</code>, <code>Chênh lệch</code>.</li>
+          <li>Network failures fall back to last-good stale data or return a clean structured failure without mock numbers.</li>
+          <li>The implementer verifies the finished server action against the live source before reporting done.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

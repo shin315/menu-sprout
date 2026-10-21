@@ -1,0 +1,484 @@
+name: release-please
+
+# Menu Sprout has no signed releases yet. The whole workflow stays inert until the
+# maintainer sets the repository variable MENU_SPROUT_RELEASES_ENABLED=true, after
+# configuring the APPLE_TEAM_ID and APPLE_DEVELOPER_ID_NAME variables and the
+# signing secrets listed in CONTRIBUTING.md. There is no Homebrew cask.
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  release-please:
+    if: ${{ vars.MENU_SPROUT_RELEASES_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    outputs:
+      menu-sprout-release-created: ${{ steps.release.outputs.release_created }}
+      menu-sprout-tag-name: ${{ steps.release.outputs.tag_name }}
+      menu-sprout-version: ${{ steps.release.outputs.version }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  macos:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.menu-sprout-release-created == 'true' }}
+    runs-on: macos-latest
+    timeout-minutes: 75
+    concurrency:
+      group: ${{ github.workflow }}-macos-${{ needs.release-please.outputs.menu-sprout-tag-name }}
+      cancel-in-progress: false
+    env:
+      TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+      DEVELOPER_ID_NAME: ${{ vars.APPLE_DEVELOPER_ID_NAME }}
+      BUNDLE_ID: io.github.shin315.menusprout
+      TAG_NAME: ${{ needs.release-please.outputs.menu-sprout-tag-name }}
+      VERSION: ${{ needs.release-please.outputs.menu-sprout-version }}
+    steps:
+      - name: Verify release signing configuration
+        run: |
+          set -euo pipefail
+          : "${TEAM_ID:?Missing APPLE_TEAM_ID repository variable}"
+          : "${DEVELOPER_ID_NAME:?Missing APPLE_DEVELOPER_ID_NAME repository variable}"
+
+      - uses: actions/checkout@v6
+        with:
+          # A newly created release builds its immutable tag.
+          ref: ${{ format('refs/tags/{0}', env.TAG_NAME) }}
+
+      - name: Verify release is still draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if ! RELEASE_DRAFT="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+            --jq '.[] | select(.tag_name == env.TAG_NAME) | .draft' 2>&1)"; then
+            echo "Unable to verify draft status for $TAG_NAME; GitHub release query failed: $RELEASE_DRAFT" >&2
+            exit 1
+          fi
+          case "$RELEASE_DRAFT" in
+            true) ;;
+            false)
+              echo "Refusing to build artifacts for a release that is already public: $TAG_NAME" >&2
+              exit 1
+              ;;
+            "")
+              echo "No GitHub release exists for tag $TAG_NAME; refusing to build artifacts." >&2
+              exit 1
+              ;;
+            *)
+              echo "Unable to verify draft status for $TAG_NAME; expected one release, got: $RELEASE_DRAFT" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Verify macOS release tools
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          xcrun --find notarytool
+
+      - name: Restore App Store Connect API key
+        id: asc-key
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+        run: |
+          set -euo pipefail
+
+          : "${APP_STORE_CONNECT_KEY_ID:?Missing APP_STORE_CONNECT_KEY_ID}"
+          : "${APP_STORE_CONNECT_ISSUER_ID:?Missing APP_STORE_CONNECT_ISSUER_ID}"
+          : "${APP_STORE_CONNECT_API_KEY:?Missing APP_STORE_CONNECT_API_KEY}"
+
+          KEY_PATH="$RUNNER_TEMP/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+          export KEY_PATH
+          python3 <<'PY'
+          import base64
+          import binascii
+          import os
+          from pathlib import Path
+
+          normalized = "".join(os.environ["APP_STORE_CONNECT_API_KEY"].split())
+          try:
+              decoded = base64.b64decode(normalized, validate=True)
+          except binascii.Error as exc:
+              raise SystemExit(f"APP_STORE_CONNECT_API_KEY is not valid base64: {exc}") from exc
+          if not decoded:
+              raise SystemExit("APP_STORE_CONNECT_API_KEY decoded to an empty file")
+          Path(os.environ["KEY_PATH"]).write_bytes(decoded)
+          PY
+          chmod 600 "$KEY_PATH"
+          echo "key_path=$KEY_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Developer ID Application certificate
+        id: developer_id_cert
+        env:
+          MAC_DEVELOPER_ID_CERT_P12: ${{ secrets.MAC_DEVELOPER_ID_CERT_P12 }}
+          MAC_DEVELOPER_ID_CERT_PASSWORD: ${{ secrets.MAC_DEVELOPER_ID_CERT_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          : "${MAC_DEVELOPER_ID_CERT_P12:?Missing MAC_DEVELOPER_ID_CERT_P12}"
+          : "${MAC_DEVELOPER_ID_CERT_PASSWORD:?Missing MAC_DEVELOPER_ID_CERT_PASSWORD}"
+
+          CERT_PATH="$RUNNER_TEMP/DeveloperID_Application.p12"
+          export CERT_PATH
+          python3 <<'PY'
+          import base64
+          import binascii
+          import os
+          from pathlib import Path
+
+          normalized = "".join(os.environ["MAC_DEVELOPER_ID_CERT_P12"].split())
+          try:
+              decoded = base64.b64decode(normalized, validate=True)
+          except binascii.Error as exc:
+              raise SystemExit(f"MAC_DEVELOPER_ID_CERT_P12 is not valid base64: {exc}") from exc
+          if not decoded:
+              raise SystemExit("MAC_DEVELOPER_ID_CERT_P12 decoded to an empty file")
+          Path(os.environ["CERT_PATH"]).write_bytes(decoded)
+          PY
+          chmod 600 "$CERT_PATH"
+
+          VALIDATION_KEYCHAIN="$RUNNER_TEMP/developer-id-validation-$(uuidgen).keychain-db"
+          VALIDATION_KEYCHAIN_PASSWORD="$(uuidgen)-$(uuidgen)"
+          cleanup_validation_keychain() {
+            security delete-keychain "$VALIDATION_KEYCHAIN" >/dev/null 2>&1 || true
+            rm -f "$VALIDATION_KEYCHAIN" >/dev/null 2>&1 || true
+          }
+          trap cleanup_validation_keychain EXIT
+
+          security create-keychain -p "$VALIDATION_KEYCHAIN_PASSWORD" "$VALIDATION_KEYCHAIN"
+          security unlock-keychain -p "$VALIDATION_KEYCHAIN_PASSWORD" "$VALIDATION_KEYCHAIN"
+          if ! security import "$CERT_PATH" \
+            -k "$VALIDATION_KEYCHAIN" \
+            -f pkcs12 \
+            -P "$MAC_DEVELOPER_ID_CERT_PASSWORD" >/dev/null 2>&1; then
+            echo "The Developer ID certificate could not be imported; verify MAC_DEVELOPER_ID_CERT_P12 and MAC_DEVELOPER_ID_CERT_PASSWORD." >&2
+            exit 1
+          fi
+          SIGNING_IDENTITIES="$(security find-identity -v -p codesigning "$VALIDATION_KEYCHAIN")"
+          if ! grep -Fq "Developer ID Application: $DEVELOPER_ID_NAME ($TEAM_ID)" <<<"$SIGNING_IDENTITIES"; then
+            echo "The certificate is not the expected Developer ID Application identity for Team $TEAM_ID." >&2
+            exit 1
+          fi
+
+          echo "csc_link=$CERT_PATH" >> "$GITHUB_OUTPUT"
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.1.1
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        env:
+          MENU_SPROUT_UMAMI_HOST: ${{ vars.MENU_SPROUT_UMAMI_HOST }}
+          MENU_SPROUT_UMAMI_WEBSITE_ID: ${{ vars.MENU_SPROUT_UMAMI_WEBSITE_ID }}
+        run: pnpm build
+
+      - name: Package, sign, notarize, and staple macOS app
+        env:
+          CSC_LINK: ${{ steps.developer_id_cert.outputs.csc_link }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_DEVELOPER_ID_CERT_PASSWORD }}
+          APPLE_API_KEY: ${{ steps.asc-key.outputs.key_path }}
+          APPLE_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          : "${CSC_LINK:?Missing restored Developer ID certificate path}"
+          : "${CSC_KEY_PASSWORD:?Missing MAC_DEVELOPER_ID_CERT_PASSWORD}"
+          : "${APPLE_API_KEY:?Missing restored APP_STORE_CONNECT_API_KEY path}"
+          : "${APPLE_API_KEY_ID:?Missing APP_STORE_CONNECT_KEY_ID}"
+          : "${APPLE_API_ISSUER:?Missing APP_STORE_CONNECT_ISSUER_ID}"
+          test -f "$CSC_LINK"
+          test -f "$APPLE_API_KEY"
+          pnpm exec electron-builder --mac dir --universal
+
+      - name: Create DMG
+        run: |
+          set -euo pipefail
+          DMG_NAME="Menu-Sprout-${VERSION}-universal.dmg"
+          hdiutil create -volname "Menu Sprout" \
+            -srcfolder "release/mac-universal/Menu Sprout.app" \
+            -ov -format UDZO "release/${DMG_NAME}"
+          echo "DMG_NAME=${DMG_NAME}" >> "$GITHUB_ENV"
+          echo "DMG_PATH=release/${DMG_NAME}" >> "$GITHUB_ENV"
+
+      - name: Notarize and staple DMG
+        env:
+          APPLE_API_KEY: ${{ steps.asc-key.outputs.key_path }}
+          APPLE_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          : "${APPLE_API_KEY:?Missing restored APP_STORE_CONNECT_API_KEY path}"
+          : "${APPLE_API_KEY_ID:?Missing APP_STORE_CONNECT_KEY_ID}"
+          : "${APPLE_API_ISSUER:?Missing APP_STORE_CONNECT_ISSUER_ID}"
+          test -f "$DMG_PATH"
+          xcrun notarytool submit "$DMG_PATH" \
+            --key "$APPLE_API_KEY" \
+            --key-id "$APPLE_API_KEY_ID" \
+            --issuer "$APPLE_API_ISSUER" \
+            --wait
+          xcrun stapler staple "$DMG_PATH"
+
+      - name: Verify publication-ready signed and notarized DMG
+        run: |
+          set -euo pipefail
+          test -f "$DMG_PATH"
+
+          MOUNT_POINT="$RUNNER_TEMP/menu-sprout-dmg-verify"
+          mkdir -p "$MOUNT_POINT"
+          hdiutil attach "$DMG_PATH" -readonly -nobrowse -mountpoint "$MOUNT_POINT" >/dev/null
+          cleanup_dmg_mount() {
+            hdiutil detach "$MOUNT_POINT" -quiet || hdiutil detach "$MOUNT_POINT" -force -quiet
+          }
+          trap cleanup_dmg_mount EXIT
+
+          APP_PATH="$MOUNT_POINT/Menu Sprout.app"
+          APP_EXECUTABLE="$APP_PATH/Contents/MacOS/Menu Sprout"
+          test -d "$APP_PATH"
+          test -x "$APP_EXECUTABLE"
+
+          codesign --verify --deep --strict --verbose=4 "$APP_PATH"
+          APP_SIGNATURE="$(codesign -d --verbose=4 "$APP_PATH" 2>&1)"
+          grep -Fq "Identifier=$BUNDLE_ID" <<<"$APP_SIGNATURE"
+          grep -Fq "TeamIdentifier=$TEAM_ID" <<<"$APP_SIGNATURE"
+          grep -Fq "Authority=Developer ID Application: $DEVELOPER_ID_NAME ($TEAM_ID)" <<<"$APP_SIGNATURE"
+          grep -Eq '^CodeDirectory .*flags=.*runtime' <<<"$APP_SIGNATURE"
+          grep -Eq '^Timestamp=.+$' <<<"$APP_SIGNATURE"
+
+          PLIST_BUNDLE_ID="$(plutil -extract CFBundleIdentifier raw -o - "$APP_PATH/Contents/Info.plist")"
+          if [ "$PLIST_BUNDLE_ID" != "$BUNDLE_ID" ]; then
+            echo "Expected bundle id $BUNDLE_ID, got $PLIST_BUNDLE_ID" >&2
+            exit 1
+          fi
+          PLIST_VERSION="$(plutil -extract CFBundleShortVersionString raw -o - "$APP_PATH/Contents/Info.plist")"
+          if [ "$PLIST_VERSION" != "$VERSION" ]; then
+            echo "Expected app version $VERSION, got $PLIST_VERSION" >&2
+            exit 1
+          fi
+          lipo "$APP_EXECUTABLE" -verify_arch arm64 x86_64
+          ARCHITECTURES="$(lipo -archs "$APP_EXECUTABLE" | tr ' ' '\n' | LC_ALL=C sort | xargs)"
+          if [ "$ARCHITECTURES" != "arm64 x86_64" ]; then
+            echo "Expected universal arm64/x86_64 app, got: $ARCHITECTURES" >&2
+            exit 1
+          fi
+
+          verify_code_object() {
+            local code_object="$1"
+            local architecture="${2:-}"
+            local signature
+            codesign --verify --strict --verbose=2 "$code_object"
+            if [ -n "$architecture" ]; then
+              signature="$(codesign -d --arch "$architecture" --verbose=4 "$code_object" 2>&1)"
+            else
+              signature="$(codesign -d --verbose=4 "$code_object" 2>&1)"
+            fi
+            grep -Fq "TeamIdentifier=$TEAM_ID" <<<"$signature"
+            grep -Fq "Authority=Developer ID Application: $DEVELOPER_ID_NAME ($TEAM_ID)" <<<"$signature"
+            grep -Eq '^CodeDirectory .*flags=.*runtime' <<<"$signature"
+            grep -Eq '^Timestamp=.+$' <<<"$signature"
+          }
+
+          verify_entitlements() {
+            local code_object="$1"
+            local architecture="${2:-}"
+            local require_jit="${3:-false}"
+            local entitlements_file
+            local -a parser_args
+            entitlements_file="$(mktemp "$RUNNER_TEMP/menu-sprout-entitlements.XXXXXX")"
+            parser_args=("$entitlements_file" "$code_object")
+            if [ -n "$architecture" ]; then
+              parser_args+=(--architecture "$architecture")
+              if ! codesign -d --arch "$architecture" --entitlements - --xml "$code_object" \
+                >"$entitlements_file"; then
+                rm -f "$entitlements_file"
+                return 1
+              fi
+            else
+              if ! codesign -d --entitlements - --xml "$code_object" >"$entitlements_file"; then
+                rm -f "$entitlements_file"
+                return 1
+              fi
+            fi
+            if [ "$require_jit" = "true" ]; then
+              parser_args+=(--require-jit)
+            fi
+            if ! python3 scripts/verify-macos-entitlements.py "${parser_args[@]}"; then
+              rm -f "$entitlements_file"
+              return 1
+            fi
+            rm -f "$entitlements_file"
+          }
+
+          verify_macho_architectures() {
+            local candidate="$1"
+            local relative_path="${candidate#"$APP_PATH"/}"
+            local architectures
+            local expected_architecture
+            local counterpart
+            local counterpart_architecture
+            local require_jit=false
+
+            case "$relative_path" in
+              Contents/MacOS/*|Contents/Frameworks/*.app/Contents/MacOS/*)
+                require_jit=true
+                ;;
+            esac
+
+            architectures="$(lipo -archs "$candidate" | tr ' ' '\n' | LC_ALL=C sort | xargs)"
+            if [ "$architectures" = "arm64 x86_64" ]; then
+              verify_code_object "$candidate" arm64
+              verify_code_object "$candidate" x86_64
+              verify_entitlements "$candidate" arm64 "$require_jit"
+              verify_entitlements "$candidate" x86_64 "$require_jit"
+              return
+            fi
+
+            case "$relative_path" in
+              Contents/Resources/app.asar.unpacked/node_modules/@tailwindcss/oxide-darwin-arm64/tailwindcss-oxide.darwin-arm64.node)
+                expected_architecture="arm64"
+                counterpart="${candidate//darwin-arm64/darwin-x64}"
+                counterpart_architecture="x86_64"
+                ;;
+              Contents/Resources/app.asar.unpacked/node_modules/@tailwindcss/oxide-darwin-x64/tailwindcss-oxide.darwin-x64.node)
+                expected_architecture="x86_64"
+                counterpart="${candidate//darwin-x64/darwin-arm64}"
+                counterpart_architecture="arm64"
+                ;;
+              Contents/Resources/app.asar.unpacked/node_modules/lightningcss-darwin-arm64/lightningcss.darwin-arm64.node)
+                expected_architecture="arm64"
+                counterpart="${candidate//darwin-arm64/darwin-x64}"
+                counterpart_architecture="x86_64"
+                ;;
+              Contents/Resources/app.asar.unpacked/node_modules/lightningcss-darwin-x64/lightningcss.darwin-x64.node)
+                expected_architecture="x86_64"
+                counterpart="${candidate//darwin-x64/darwin-arm64}"
+                counterpart_architecture="arm64"
+                ;;
+              *)
+                echo "Expected universal arm64/x86_64 Mach-O at $relative_path, got: $architectures" >&2
+                exit 1
+                ;;
+            esac
+
+            if [ "$architectures" != "$expected_architecture" ]; then
+              echo "Expected $expected_architecture Mach-O at $relative_path, got: $architectures" >&2
+              exit 1
+            fi
+            if [ ! -f "$counterpart" ] || ! file -b "$counterpart" | grep -Fq 'Mach-O'; then
+              echo "Missing paired $counterpart_architecture native prebuilt for $relative_path" >&2
+              exit 1
+            fi
+            local counterpart_architectures
+            counterpart_architectures="$(lipo -archs "$counterpart" | tr ' ' '\n' | LC_ALL=C sort | xargs)"
+            if [ "$counterpart_architectures" != "$counterpart_architecture" ]; then
+              echo "Expected paired $counterpart_architecture Mach-O at ${counterpart#"$APP_PATH"/}, got: $counterpart_architectures" >&2
+              exit 1
+            fi
+            verify_code_object "$candidate" "$expected_architecture"
+            verify_entitlements "$candidate" "$expected_architecture" "$require_jit"
+          }
+
+          BUNDLE_COUNT=0
+          while IFS= read -r -d '' code_bundle; do
+            verify_code_object "$code_bundle"
+            case "$code_bundle" in
+              *.app) verify_entitlements "$code_bundle" "" true ;;
+              *) verify_entitlements "$code_bundle" ;;
+            esac
+            BUNDLE_COUNT=$((BUNDLE_COUNT + 1))
+          done < <(find "$APP_PATH" -type d \( -name '*.app' -o -name '*.framework' \) -print0)
+          if [ "$BUNDLE_COUNT" -eq 0 ]; then
+            echo "No signed app/framework code bundles found" >&2
+            exit 1
+          fi
+
+          EXECUTABLE_COUNT=0
+          while IFS= read -r -d '' candidate; do
+            if file -b "$candidate" | grep -Fq 'Mach-O'; then
+              verify_macho_architectures "$candidate"
+              EXECUTABLE_COUNT=$((EXECUTABLE_COUNT + 1))
+            fi
+          done < <(find "$APP_PATH" -type f -print0)
+          if [ "$EXECUTABLE_COUNT" -eq 0 ]; then
+            echo "No signed Mach-O executables found" >&2
+            exit 1
+          fi
+
+          GATEKEEPER_RESULT="$(spctl --assess --type execute --verbose=4 "$APP_PATH" 2>&1)"
+          printf '%s\n' "$GATEKEEPER_RESULT"
+          grep -Fq 'accepted' <<<"$GATEKEEPER_RESULT"
+          grep -Fq 'source=Notarized Developer ID' <<<"$GATEKEEPER_RESULT"
+          xcrun stapler validate "$APP_PATH"
+          xcrun stapler validate "$DMG_PATH"
+
+          node scripts/e2e-packaged-mac-app.mjs "$APP_PATH"
+
+          hdiutil detach "$MOUNT_POINT" -quiet
+          trap - EXIT
+
+      - name: Compute SHA256
+        run: |
+          set -euo pipefail
+          SHA256="$(shasum -a 256 "$DMG_PATH" | awk '{print $1}')"
+          if [[ ! "$SHA256" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "Could not compute a valid SHA256 for $DMG_PATH" >&2
+            exit 1
+          fi
+          echo "SHA256=${SHA256}" >> "$GITHUB_ENV"
+
+      - name: Upload DMG to draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG_NAME" "$DMG_PATH" --clobber
+
+      - name: Publish verified release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if ! RELEASE_DRAFT="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+            --jq '.[] | select(.tag_name == env.TAG_NAME) | .draft' 2>&1)"; then
+            echo "Unable to verify draft status before publishing $TAG_NAME; GitHub release query failed: $RELEASE_DRAFT" >&2
+            exit 1
+          fi
+          case "$RELEASE_DRAFT" in
+            true) ;;
+            false)
+              echo "Refusing to publish a release that is already public: $TAG_NAME" >&2
+              exit 1
+              ;;
+            "")
+              echo "No GitHub release exists for tag $TAG_NAME; refusing to publish." >&2
+              exit 1
+              ;;
+            *)
+              echo "Unable to verify draft status before publishing $TAG_NAME; expected one release, got: $RELEASE_DRAFT" >&2
+              exit 1
+              ;;
+          esac
+          gh release edit "$TAG_NAME" --draft=false

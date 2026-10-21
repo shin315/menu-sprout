@@ -1,0 +1,460 @@
+/*
+ * Single source of truth for the Menu Sprout design-system @theme.
+ *
+ * Consumed by two places, which is the whole point of having one file:
+ *   1. The renderer build (src/ui/styles.css imports this).
+ *   2. The per-widget Tailwind compiler in the main process
+ *      (src/main/widget-module-registry.ts imports this file ?raw).
+ *
+ * Token-first: `--color-*: initial` wipes Tailwind's default palette so named
+ * color utilities come from the tokens below. Arbitrary values remain available
+ * for rare widget-specific needs. Spacing keeps Tailwind's conventional 4px base
+ * so ported component dimensions stay correct; the 2px --space-* scale lives in
+ * colors_and_type.css for the legacy app-shell CSS.
+ *
+ * Root-level theme values let dynamically loaded widgets inherit the shell's
+ * selection. See docs/architecture.md#public-extension-surfaces for theme wiring.
+ */
+@theme {
+  --color-*: initial;
+
+  --color-void: var(--th-void);
+  --color-stage: var(--th-stage);
+  --color-surface: var(--th-surface);
+  --color-elevated: var(--th-elevated);
+  --color-pressed: var(--th-pressed);
+
+  --color-ink-strong: var(--th-ink-strong);
+  --color-ink: var(--th-ink);
+  --color-ink-muted: var(--th-ink-muted);
+  --color-ink-soft: var(--th-ink-soft);
+  --color-ink-label: var(--th-ink-label);
+  --color-ink-faint: var(--th-ink-faint);
+
+  --color-line: var(--th-line);
+  --color-line-faint: var(--th-line-faint);
+
+  --color-signal-live: var(--th-live);
+  --color-signal-warn: var(--th-warn);
+  --color-signal-danger: var(--th-danger);
+
+  --font-mono: var(--th-font-mono);
+  --font-prose: var(--th-font-prose);
+
+  /* Type scale matches colors_and_type.css --fs-*. Wiped so only the design
+     scale exists (text-md is added; Tailwind has no default text-md). */
+  --text-*: initial;
+  --text-xxs: 0.6875rem;
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.25rem;
+
+  --tracking-tight: -0.01em;
+  --tracking-value: -0.04em;
+  --tracking-caps: 0.18em;
+
+  --radius-xs: var(--th-radius-xs);
+  --radius-sm: var(--th-radius-sm);
+  --radius-md: var(--th-radius-md);
+  --radius-lg: var(--th-radius-lg);
+  --radius-xl: var(--th-radius-xl);
+  --radius-pill: 9999px;
+}
+
+@layer base {
+  /* Default (Monochrome Lab) */
+  :root {
+    /* Native controls and scrollbars follow the same light/dark resolution. */
+    color-scheme: light dark;
+
+    --th-void: #060607;
+    --th-stage: #0b0b0c;
+    --th-surface: #101012;
+    --th-elevated: #16161a;
+    --th-pressed: #1c1c21;
+
+    --th-ink-strong: rgba(255, 255, 255, 0.96);
+    --th-ink: rgba(255, 255, 255, 0.86);
+    --th-ink-muted: rgba(255, 255, 255, 0.65);
+    --th-ink-soft: rgba(255, 255, 255, 0.48);
+    --th-ink-label: rgba(255, 255, 255, 0.34);
+    --th-ink-faint: rgba(255, 255, 255, 0.22);
+
+    --th-line: rgba(255, 255, 255, 0.12);
+    --th-line-faint: rgba(255, 255, 255, 0.07);
+
+    --th-live: #6ae3b6;
+    --th-warn: #ffd86b;
+    --th-danger: #ff6a7a;
+
+    --th-font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, "Cascadia Mono", Consolas, monospace;
+    --th-font-prose: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, "Cascadia Mono", Consolas, monospace;
+
+    --th-radius-xs: 2px;
+    --th-radius-sm: 4px;
+    --th-radius-md: 6px;
+    --th-radius-lg: 8px;
+    --th-radius-xl: 10px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --th-void: #ededef;
+      --th-stage: #f7f7f8;
+      --th-surface: #efeff1;
+      --th-elevated: #ffffff;
+      --th-pressed: #dcdcdf;
+
+      --th-ink-strong: rgba(0, 0, 0, 0.92);
+      --th-ink: rgba(0, 0, 0, 0.82);
+      --th-ink-muted: rgba(0, 0, 0, 0.64);
+      --th-ink-soft: rgba(0, 0, 0, 0.5);
+      --th-ink-label: rgba(0, 0, 0, 0.4);
+      --th-ink-faint: rgba(0, 0, 0, 0.24);
+
+      --th-line: rgba(0, 0, 0, 0.12);
+      --th-line-faint: rgba(0, 0, 0, 0.06);
+
+      --th-live: #0e9f6e;
+      --th-warn: #b7791f;
+      --th-danger: #d6293e;
+    }
+  }
+
+  /* 1. Vibrant Glass */
+  :root[data-theme="vibrant-glass"] {
+    --th-stage: rgba(18, 18, 21, 0.6);
+    --th-surface: rgba(255, 255, 255, 0.02);
+    --th-elevated: rgba(255, 255, 255, 0.05);
+    --th-pressed: rgba(255, 255, 255, 0.1);
+    --th-line: rgba(255, 255, 255, 0.1);
+    --th-live: #32D74B;
+    --th-font-prose: "Inter Tight", system-ui, sans-serif;
+    --th-font-mono: "JetBrains Mono", monospace;
+    --th-radius-sm: 12px;
+    --th-radius-md: 12px;
+    --th-ink-strong: #fff;
+    --th-ink: rgba(255,255,255,0.9);
+  }
+  @media (prefers-color-scheme: light) {
+    :root[data-theme="vibrant-glass"] {
+      --th-void: #e5e7eb;
+      --th-stage: rgba(243, 244, 246, 0.6);
+      --th-surface: rgba(255, 255, 255, 0.4);
+      --th-elevated: rgba(255, 255, 255, 0.95);
+      --th-pressed: rgba(255, 255, 255, 0.8);
+      --th-ink-strong: #111;
+      --th-ink: #222;
+      --th-ink-muted: rgba(0,0,0,0.7);
+      --th-ink-soft: rgba(0,0,0,0.5);
+      --th-ink-label: rgba(0,0,0,0.4);
+      --th-ink-faint: rgba(0,0,0,0.25);
+      --th-line: rgba(0, 0, 0, 0.05);
+      --th-line-faint: rgba(0, 0, 0, 0.03);
+      --th-live: #34C759;
+      --th-warn: #B7791F;
+      --th-danger: #D70015;
+    }
+  }
+
+  /* 2. Paper Sketch */
+  :root[data-theme="paper-sketch"] {
+    --th-stage: #2A2825;
+    --th-surface: #262421;
+    --th-elevated: transparent;
+    --th-pressed: rgba(255, 255, 255, 0.05);
+    --th-line: rgba(255, 255, 255, 0.1);
+    --th-live: #88A07A;
+    --th-font-prose: "Georgia", "Times New Roman", serif;
+    --th-font-mono: "Courier New", monospace;
+    --th-radius-sm: 0px;
+    --th-radius-md: 0px;
+    --th-ink-strong: #FFF;
+    --th-ink: #DEDCD5;
+    --th-ink-soft: rgba(222, 220, 213, 0.6);
+  }
+  @media (prefers-color-scheme: light) {
+    :root[data-theme="paper-sketch"] {
+      --th-void: #EFECE4;
+      --th-stage: #F9F7F1;
+      --th-surface: #F3F1EB;
+      --th-elevated: transparent;
+      --th-pressed: rgba(0, 0, 0, 0.05);
+      --th-ink-strong: #111;
+      --th-ink: #3C3A35;
+      --th-ink-muted: rgba(60, 58, 53, 0.8);
+      --th-ink-soft: rgba(60, 58, 53, 0.6);
+      --th-ink-label: rgba(60, 58, 53, 0.5);
+      --th-ink-faint: rgba(60, 58, 53, 0.3);
+      --th-line: rgba(0, 0, 0, 0.1);
+      --th-line-faint: rgba(0, 0, 0, 0.05);
+      --th-live: #608253;
+      --th-warn: #A8741A;
+      --th-danger: #B5443B;
+    }
+  }
+
+  /* 3. Solarized Garden */
+  :root[data-theme="solarized-garden"] {
+    --th-stage: #002B36;
+    --th-surface: #073642;
+    --th-elevated: #073642;
+    --th-pressed: #094A5A;
+    --th-line: #073642;
+    --th-live: #859900;
+    --th-font-prose: system-ui, sans-serif;
+    --th-font-mono: ui-monospace, monospace;
+    --th-radius-sm: 8px;
+    --th-radius-md: 8px;
+    --th-ink-strong: #93A1A1;
+    --th-ink: #839496;
+    --th-ink-soft: #586E75;
+  }
+  @media (prefers-color-scheme: light) {
+    :root[data-theme="solarized-garden"] {
+      --th-void: #EEE8D5;
+      --th-stage: #FDF6E3;
+      --th-surface: #EEE8D5;
+      --th-elevated: #EEE8D5;
+      --th-pressed: #E1DAC7;
+      --th-ink-strong: #657B83;
+      --th-ink: #586E75;
+      --th-ink-muted: #657B83;
+      --th-ink-soft: #657B83;
+      --th-ink-label: rgba(101, 123, 131, 0.8);
+      --th-ink-faint: rgba(88, 110, 117, 0.35);
+      --th-line: #EEE8D5;
+      --th-line-faint: #F5EFDC;
+      --th-live: #859900;
+      --th-warn: #B58900;
+      --th-danger: #DC322F;
+    }
+  }
+
+  /* 4. Retro Terminal */
+  :root[data-theme="retro-terminal"] {
+    --th-stage: #000000;
+    --th-surface: #000000;
+    --th-elevated: transparent;
+    --th-pressed: #111100;
+    --th-line: #FFB000;
+    --th-live: #FFB000;
+    --th-font-prose: "Courier New", monospace;
+    --th-font-mono: "Courier New", monospace;
+    --th-radius-sm: 0px;
+    --th-radius-md: 0px;
+    --th-ink-strong: #FFB000;
+    --th-ink: #FFB000;
+    --th-ink-soft: rgba(255, 176, 0, 0.6);
+  }
+  @media (prefers-color-scheme: light) {
+    :root[data-theme="retro-terminal"] {
+      --th-void: #FFFFFF;
+      --th-stage: #FFFFFF;
+      --th-surface: #FFFFFF;
+      --th-elevated: transparent;
+      --th-pressed: #E0E0E0;
+      --th-ink-strong: #000000;
+      --th-ink: #000000;
+      --th-ink-muted: rgba(0, 0, 0, 0.75);
+      --th-ink-soft: rgba(0, 0, 0, 0.6);
+      --th-ink-label: rgba(0, 0, 0, 0.5);
+      --th-ink-faint: rgba(0, 0, 0, 0.35);
+      --th-line: #000000;
+      --th-line-faint: rgba(0, 0, 0, 0.3);
+      --th-live: #000000;
+      --th-warn: #8A6D00;
+      --th-danger: #C00000;
+    }
+  }
+
+  /* 5. High Contrast */
+  :root[data-theme="high-contrast"] {
+    --th-stage: #000000;
+    --th-surface: #000000;
+    --th-elevated: #000000;
+    --th-pressed: #222222;
+    --th-line: #FFFFFF;
+    --th-live: #FFFF00;
+    --th-font-prose: system-ui, sans-serif;
+    --th-font-mono: ui-monospace, monospace;
+    --th-radius-sm: 0px;
+    --th-radius-md: 0px;
+    --th-ink-strong: #FFFFFF;
+    --th-ink: #FFFFFF;
+    --th-ink-muted: #FFFFFF;
+    --th-ink-soft: #FFFFFF;
+    --th-ink-label: #FFFFFF;
+    --th-ink-faint: #FFFFFF;
+  }
+  @media (prefers-color-scheme: light) {
+    :root[data-theme="high-contrast"] {
+      --th-void: #FFFFFF;
+      --th-stage: #FFFFFF;
+      --th-surface: #FFFFFF;
+      --th-elevated: #FFFFFF;
+      --th-pressed: #DDDDDD;
+      --th-ink-strong: #000000;
+      --th-ink: #000000;
+      --th-ink-muted: #000000;
+      --th-ink-soft: #000000;
+      --th-ink-label: #000000;
+      --th-ink-faint: #000000;
+      --th-line: #000000;
+      --th-line-faint: #000000;
+      --th-live: #0000FF;
+      --th-warn: #7A5C00;
+      --th-danger: #C00000;
+    }
+  }
+
+  /* 6. Calm Pastel */
+  :root[data-theme="calm-pastel"] {
+    --th-stage: #24273A;
+    --th-surface: #1E2030;
+    --th-elevated: #363A4F;
+    --th-pressed: #494D64;
+    --th-line: #363A4F;
+    --th-live: #B4BEFE;
+    --th-font-prose: system-ui, sans-serif;
+    --th-radius-sm: 12px;
+    --th-radius-md: 12px;
+    --th-ink-strong: #FFFFFF;
+    --th-ink: #CAD3F5;
+    --th-ink-soft: #A5ADCB;
+  }
+  @media (prefers-color-scheme: light) {
+    :root[data-theme="calm-pastel"] {
+      --th-void: #DCE0E8;
+      --th-stage: #EFF1F5;
+      --th-surface: #E6E9EF;
+      --th-elevated: #FFFFFF;
+      --th-pressed: #E6E9EF;
+      --th-ink-strong: #4C4F69;
+      --th-ink: #4C4F69;
+      --th-ink-muted: #5C5F77;
+      --th-ink-soft: #6C6F85;
+      --th-ink-label: #7C7F93;
+      --th-ink-faint: #9CA0B0;
+      --th-line: #CCD0DA;
+      --th-line-faint: #DCE0E8;
+      --th-live: #7287FD;
+      --th-warn: #DF8E1D;
+      --th-danger: #D20F39;
+    }
+  }
+
+  /* 7. Vietnamese Heritage */
+  :root[data-theme="vietnamese-heritage"] {
+    --th-stage: #0F0A06;
+    --th-surface: #0F0A06;
+    --th-elevated: #1A110A;
+    --th-pressed: #2B1C10;
+    --th-line: rgba(212,175,55,0.3);
+    --th-live: #E03C31;
+    --th-font-prose: "Georgia", serif;
+    --th-radius-sm: 4px;
+    --th-radius-md: 4px;
+    --th-ink-strong: #F2E3C6;
+    --th-ink: #D4AF37;
+    --th-ink-soft: rgba(212,175,55,0.6);
+  }
+  @media (prefers-color-scheme: light) {
+    :root[data-theme="vietnamese-heritage"] {
+      --th-void: #EAEAE4;
+      --th-stage: #F5F5F0;
+      --th-surface: #EAEAE4;
+      --th-elevated: #FFFFFF;
+      --th-pressed: #EAEAE4;
+      --th-ink-strong: #111;
+      --th-ink: #1D3C6A;
+      --th-ink-muted: rgba(29,60,106,0.8);
+      --th-ink-soft: rgba(29,60,106,0.6);
+      --th-ink-label: rgba(29,60,106,0.5);
+      --th-ink-faint: rgba(29,60,106,0.3);
+      --th-line: rgba(29,60,106,0.2);
+      --th-line-faint: rgba(29,60,106,0.1);
+      --th-live: #E03C31;
+      --th-warn: #B8860B;
+      --th-danger: #9B1C1C;
+    }
+  }
+
+  /* 8. Neon Synthwave */
+  :root[data-theme="neon-synthwave"] {
+    --th-stage: #120024;
+    --th-surface: #0A0014;
+    --th-elevated: rgba(0,255,255,0.05);
+    --th-pressed: rgba(0,255,255,0.1);
+    --th-line: rgba(255,0,255,0.3);
+    --th-live: #FF00FF;
+    --th-font-prose: ui-monospace, monospace;
+    --th-radius-sm: 0px;
+    --th-radius-md: 0px;
+    --th-ink-strong: #00FFFF;
+    --th-ink: #00FFFF;
+    --th-ink-soft: rgba(0,255,255,0.6);
+  }
+  @media (prefers-color-scheme: light) {
+    :root[data-theme="neon-synthwave"] {
+      --th-void: #FFD6EB;
+      --th-stage: #FFE6F2;
+      --th-surface: #FFCCE5;
+      --th-elevated: #FFFFFF;
+      --th-pressed: #FFCCE5;
+      --th-ink-strong: #330033;
+      --th-ink: #330033;
+      --th-ink-muted: rgba(51,0,51,0.8);
+      --th-ink-soft: rgba(51,0,51,0.6);
+      --th-ink-label: rgba(51,0,51,0.5);
+      --th-ink-faint: rgba(51,0,51,0.3);
+      --th-line: rgba(0,255,255,0.5);
+      --th-line-faint: rgba(0,255,255,0.25);
+      --th-live: #00FFFF;
+      --th-warn: #B36B00;
+      --th-danger: #CC0055;
+      --th-radius-sm: 8px;
+      --th-radius-md: 8px;
+    }
+  }
+
+  /* 9. Nature Wood */
+  :root[data-theme="nature-wood"] {
+    --th-stage: #1B291A;
+    --th-surface: #131E12;
+    --th-elevated: #233421;
+    --th-pressed: #2D402B;
+    --th-line: #3A4C38;
+    --th-live: #8A9A86;
+    --th-font-prose: system-ui, sans-serif;
+    --th-radius-sm: 16px;
+    --th-radius-md: 16px;
+    --th-ink-strong: #FFFFFF;
+    --th-ink: #D5E1D0;
+    --th-ink-soft: #A4B89D;
+  }
+  @media (prefers-color-scheme: light) {
+    :root[data-theme="nature-wood"] {
+      --th-void: #E6DFD3;
+      --th-stage: #F2EBE1;
+      --th-surface: #E6DFD3;
+      --th-elevated: #FAF7F2;
+      --th-pressed: #E6DFD3;
+      --th-ink-strong: #111;
+      --th-ink: #4A3E31;
+      --th-ink-muted: rgba(74,62,49,0.85);
+      --th-ink-soft: #5C4033;
+      --th-ink-label: rgba(74,62,49,0.6);
+      --th-ink-faint: rgba(74,62,49,0.4);
+      --th-line: #D6CCBF;
+      --th-line-faint: #E6DFD3;
+      --th-live: #4C7A34;
+      --th-warn: #A0670B;
+      --th-danger: #A63D2F;
+    }
+  }
+}

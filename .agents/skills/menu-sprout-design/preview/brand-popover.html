@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Popover frame</title>
+<link rel="stylesheet" href="card.css">
+<style>
+  body { background: var(--bg-void); padding: 0; }
+  .stage {
+    background:
+      radial-gradient(60% 80% at 40% 0%, #1f1d1c 0%, #0c0b0a 50%, #050505 100%);
+    min-height: 100vh;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .menubar {
+    width: 100%;
+    height: 26px;
+    background: rgba(8,8,9,0.85);
+    backdrop-filter: blur(20px);
+    border-bottom: 0.5px solid rgba(255,255,255,0.06);
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    box-sizing: border-box;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: rgba(255,255,255,0.7);
+  }
+  .menubar .right { margin-left: auto; display: flex; gap: 14px; align-items: center; }
+  .menubar .tray {
+    width: 18px; height: 18px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.16);
+    display: grid; place-items: center;
+    color: white;
+    font-weight: var(--weight-semi);
+    font-size: 11px;
+  }
+  .popover {
+    width: 504px;
+    background: var(--bg-stage);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-pop);
+    margin-top: 18px;
+    overflow: hidden;
+    color: var(--ink);
+  }
+  .head {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .head .mark { font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-muted); }
+  .body { padding: 14px; }
+  .placeholder {
+    background: var(--bg-card);
+    border: 1px dashed var(--ink-700);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    color: var(--ink-soft);
+    font-size: 11px;
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="menubar">
+    <div class="right">
+      <span>battery 78%</span>
+      <span>wi-fi</span>
+      <span class="tray">b</span>
+      <span>12:04</span>
+    </div>
+  </div>
+  <div class="popover">
+    <div class="head">
+      <span class="mark">menu_sprout</span>
+    </div>
+    <div class="body">
+      <div class="placeholder">widget surface · falls from tray on click · borders are 1px white at 12% alpha</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Buttons</title>
+<link rel="stylesheet" href="card.css">
+<style>
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  button {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: var(--weight-med);
+    letter-spacing: 0.02em;
+    padding: 6px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--ink-200);
+    cursor: pointer;
+    transition: background var(--motion-base) var(--ease),
+                border-color var(--motion-base) var(--ease),
+                color var(--motion-base) var(--ease);
+  }
+  button:hover  { background: var(--bg-elevated); border-color: var(--ink-600); color: var(--ink-100); }
+  button:active { background: var(--bg-pressed); }
+
+  .btn-primary {
+    background: var(--ink-100);
+    color: #0B0B0C;
+    border-color: var(--ink-100);
+  }
+  .btn-primary:hover { background: white; border-color: white; color: #0B0B0C; }
+
+  .btn-danger { color: var(--signal-error); border-color: rgba(255,106,122,0.35); }
+  .btn-danger:hover { background: rgba(255,106,122,0.10); border-color: var(--signal-error); color: var(--signal-error); }
+
+  .btn-ghost { border-color: transparent; color: var(--ink-soft); }
+  .btn-ghost:hover { color: var(--ink-100); }
+
+  .btn-sm { padding: 4px 10px; font-size: 11px; }
+  button:disabled { opacity: 0.32; cursor: not-allowed; }
+</style>
+</head>
+<body>
+<div class="card">
+  <span class="label">buttons · production uses compact corners · primary = inverse, danger = coral outline</span>
+  <div class="row">
+    <button class="btn-primary">Keep</button>
+    <button>Send</button>
+    <button class="btn-danger">Undo</button>
+    <button class="btn-ghost">Dismiss</button>
+    <button disabled>Running</button>
+  </div>
+  <div class="row">
+    <button class="btn-primary btn-sm">Keep</button>
+    <button class="btn-sm">Refresh</button>
+    <button class="btn-danger btn-sm">Undo</button>
+    <button class="btn-ghost btn-sm">esc</button>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,2 @@
+# Captain (2026-10-15): Claude Opus first, Codex as fallback.
+agent: [claude, codex]

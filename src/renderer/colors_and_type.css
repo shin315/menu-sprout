@@ -1,0 +1,255 @@
+@charset "UTF-8";
+
+/* Theme typography works offline; see ../../docs/development.md for build wiring. */
+@import url("./fonts/fonts.css");
+
+:root {
+  --bg-void: var(--th-void);
+  --bg-stage: var(--th-stage);
+  --bg-surface: var(--th-surface);
+  --bg-elevated: var(--th-elevated);
+  --bg-pressed: var(--th-pressed);
+
+  --ink-100: var(--th-ink-strong);
+  --ink-200: var(--th-ink);
+  --ink-300: var(--th-ink-muted);
+  --ink-400: var(--th-ink-soft);
+  --ink-500: var(--th-ink-label);
+  --ink-600: var(--th-ink-faint);
+  --ink-700: var(--th-line);
+  --ink-800: var(--th-line-faint);
+  --ink-900: rgba(255, 255, 255, 0.04);
+
+  --signal-live: var(--th-live);
+  --signal-live-glow: 0 0 6px rgba(106, 227, 182, 0.65);
+  --signal-pending: var(--th-warn);
+  --signal-pending-glow: 0 0 6px rgba(255, 216, 107, 0.55);
+  --signal-error: var(--th-danger);
+  --signal-error-glow: 0 0 6px rgba(255, 106, 122, 0.55);
+
+  --signal-live-tint: rgba(106, 227, 182, 0.10);
+  --signal-pending-tint: rgba(255, 216, 107, 0.10);
+  --signal-error-tint: rgba(255, 106, 122, 0.10);
+
+  --bg: var(--bg-stage);
+  --bg-card: var(--bg-surface);
+  --bg-input: var(--bg-elevated);
+
+  --ink: var(--ink-200);
+  --ink-strong: var(--ink-100);
+  --ink-muted: var(--ink-300);
+  --ink-soft: var(--ink-400);
+  --ink-label: var(--ink-500);
+  --ink-faint: var(--ink-600);
+
+  --line: var(--ink-700);
+  --line-faint: var(--ink-800);
+
+  --signal: var(--signal-live);
+  --signal-glow: var(--signal-live-glow);
+  --signal-warn: var(--signal-pending);
+  --signal-danger: var(--signal-error);
+
+  --focus-ring: 0 0 0 1px rgba(106, 227, 182, 0.5),
+    0 0 0 4px rgba(106, 227, 182, 0.18);
+
+  --font-mono: var(--th-font-mono);
+  --font-prose: var(--th-font-prose);
+
+  --fs-xxs: 0.6875rem;
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.8125rem;
+  --fs-base: 0.875rem;
+  --fs-md: 1rem;
+  --fs-lg: 1.125rem;
+  --fs-xl: 1.5rem;
+  --fs-2xl: 1.75rem;
+  --fs-3xl: 2.25rem;
+
+  --lh-tight: 1;
+  --lh-snug: 1.2;
+  --lh-body: 1.45;
+
+  --tracking-value: -0.04em;
+  --tracking-tight: -0.01em;
+  --tracking-normal: 0;
+  --tracking-caps: 0.18em;
+  --tracking-foot: 0.20em;
+
+  --weight-light: 300;
+  --weight-reg: 400;
+  --weight-med: 500;
+  --weight-semi: 600;
+
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 6px;
+  --space-4: 8px;
+  --space-5: 12px;
+  --space-6: 16px;
+  --space-7: 20px;
+  --space-8: 24px;
+  --space-9: 32px;
+
+  --radius-xs: var(--th-radius-xs);
+  --radius-sm: var(--th-radius-sm);
+  --radius-md: var(--th-radius-md);
+  --radius-lg: var(--th-radius-lg);
+  --radius-xl: var(--th-radius-xl);
+  --radius-pill: 999px;
+
+  --shadow-pop: 0 24px 80px rgba(0, 0, 0, 0.65),
+    0 0 0 0.5px rgba(255, 255, 255, 0.04);
+  --shadow-inset: inset 0 0.5px 0 rgba(255, 255, 255, 0.06);
+
+  --motion-fast: 80ms;
+  --motion-base: 160ms;
+  --motion-slow: 280ms;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-prose);
+  font-size: var(--fs-base);
+  line-height: var(--lh-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "tnum", "calt";
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  color: var(--ink-strong);
+  line-height: var(--lh-tight);
+  font-family: var(--font-prose);
+  font-weight: var(--weight-med);
+  letter-spacing: var(--tracking-tight);
+}
+
+h1 {
+  font-size: var(--fs-base);
+  font-weight: var(--weight-med);
+}
+
+h2,
+h3 {
+  font-size: var(--fs-sm);
+  font-weight: var(--weight-med);
+}
+
+p {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
+  text-wrap: pretty;
+}
+
+code,
+pre {
+  font-family: var(--font-mono);
+  font-size: 1em;
+  color: var(--ink-strong);
+}
+
+kbd {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  padding: 1px 5px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-elevated);
+  color: var(--ink-muted);
+  border: 1px solid var(--line);
+}
+
+.label {
+  font-family: var(--font-prose);
+  font-size: var(--fs-xxs);
+  font-weight: var(--weight-reg);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--ink-label);
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-prose);
+  font-size: var(--fs-xxs);
+  font-weight: var(--weight-reg);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--signal);
+}
+
+.status::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor;
+}
+
+.status.warn {
+  color: var(--signal-warn);
+}
+
+.status.danger {
+  color: var(--signal-danger);
+}
+
+.status.muted {
+  color: var(--ink-soft);
+}
+
+.status.muted::before {
+  box-shadow: none;
+  opacity: 0.6;
+}
+
+.value {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-light);
+  letter-spacing: var(--tracking-value);
+  color: var(--ink-strong);
+  line-height: var(--lh-tight);
+  font-feature-settings: "tnum";
+}
+
+.value small {
+  font-size: 0.42em;
+  font-weight: var(--weight-reg);
+  letter-spacing: 0;
+  color: var(--ink-soft);
+  margin-left: 2px;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-sm);
+}
+
+::selection {
+  background: rgba(106, 227, 182, 0.25);
+  color: var(--ink-strong);
+}
+
+.prose,
+.prose p,
+.prose li {
+  font-family: var(--font-prose);
+  font-size: var(--fs-sm);
+  line-height: 1.55;
+}

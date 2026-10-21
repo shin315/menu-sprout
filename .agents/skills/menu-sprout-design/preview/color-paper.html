@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Canvas — background layers</title>
+<link rel="stylesheet" href="card.css">
+<style>
+  .row { display: flex; gap: 12px; }
+  .col { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .layer {
+    height: 64px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line-faint);
+    display: grid;
+    place-items: end start;
+    padding: 8px 10px;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <span class="label">canvas · near-black layers · never #000</span>
+  <div class="row">
+    <div class="col"><div class="layer" style="background:#060607"></div><span class="swatch-name">--bg-void</span><span class="swatch-hex">#060607</span></div>
+    <div class="col"><div class="layer" style="background:#0B0B0C"></div><span class="swatch-name">--bg-stage</span><span class="swatch-hex">#0B0B0C</span></div>
+    <div class="col"><div class="layer" style="background:#101012"></div><span class="swatch-name">--bg-surface</span><span class="swatch-hex">#101012</span></div>
+    <div class="col"><div class="layer" style="background:#16161A"></div><span class="swatch-name">--bg-elevated</span><span class="swatch-hex">#16161A</span></div>
+    <div class="col"><div class="layer" style="background:#1C1C21"></div><span class="swatch-name">--bg-pressed</span><span class="swatch-hex">#1C1C21</span></div>
+  </div>
+  <p class="note">Stage = inside the popover. Surface = card / module. Elevated = composer field, hover. Pressed = mousedown.</p>
+</div>
+</body>
+</html>

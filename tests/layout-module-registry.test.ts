@@ -1,0 +1,103 @@
+import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
+import { discoverLayoutModule, discoverWidgetModules } from "../src/main/widget-module-registry";
+
+describe("layout module registry", () => {
+  const tempDirs: string[] = [];
+
+  afterEach(async () => {
+    await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
+  });
+
+  it("returns null when the workspace has no root layout module", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "menu-sprout-layout-registry-"));
+    tempDirs.push(rootDir);
+    const extensionsDir = join(rootDir, "extensions-dev");
+    await mkdir(join(extensionsDir, "cpu-temp"), { recursive: true });
+    await writeFile(join(extensionsDir, "cpu-temp", "widget.tsx"), "export const cpuTempWidget = {};\n");
+
+    expect(await discoverLayoutModule({ rootDir, extensionsDir })).toBeNull();
+  });
+
+  it("discovers a dev-mode root layout module via /@fs", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "menu-sprout-layout-registry-"));
+    tempDirs.push(rootDir);
+    const extensionsDir = join(rootDir, "extensions-dev");
+    await mkdir(extensionsDir, { recursive: true });
+    await writeFile(join(extensionsDir, "layout.tsx"), "export default function Layout() { return null; }\n");
+
+    const descriptor = await discoverLayoutModule({ rootDir, extensionsDir });
+
+    expect(descriptor?.moduleUrl).toContain("/@fs/");
+    expect(descriptor?.moduleUrl).toContain("layout.tsx");
+    expect(descriptor?.moduleUrl).toContain("menuSproutWidgetVersion=");
+  });
+
+  it("returns a compiled custom protocol URL for the production layout module", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "menu-sprout-layout-registry-"));
+    tempDirs.push(rootDir);
+    const extensionsDir = join(rootDir, ".menu-sprout", "extensions");
+    await mkdir(extensionsDir, { recursive: true });
+    await writeFile(
+      join(extensionsDir, "layout.tsx"),
+      `import type { MenuSproutLayoutProps } from "@menusprout/contracts";\n` +
+        `export default function Layout({ widgets, renderWidget }: MenuSproutLayoutProps) {\n` +
+        `  return widgets.map((w) => renderWidget(w.id));\n}\n`,
+    );
+
+    const descriptor = await discoverLayoutModule({
+      rootDir,
+      extensionsDir,
+      mode: "compiled",
+      widgetCacheDir: join(rootDir, "cache", "widgets"),
+    });
+
+    expect(descriptor?.moduleUrl).toMatch(/^menu-sprout-widget:\/\/__layout\/[a-f0-9]{16}\/layout\.mjs$/);
+    expect(descriptor?.cssUrl).toMatch(/^menu-sprout-widget:\/\/__layout\/[a-f0-9]{16}\/widget\.css$/);
+  });
+
+  it("compiles the layout when the extensions workspace is a symlink (home-manager/Nix)", async () => {
+    // Reproduces production on a home-manager/Nix machine: ~/.menu-sprout/extensions
+    // is a symlink into the read-only store. The layout compile passes the root as
+    // the Tailwind source dir, and copying a symlinked root used to throw, which
+    // discoverLayoutModule swallowed in compiled mode, silently dropping the layout.
+    const rootDir = await mkdtemp(join(tmpdir(), "menu-sprout-layout-registry-"));
+    tempDirs.push(rootDir);
+    const realExtensionsDir = join(rootDir, "real-extensions");
+    await mkdir(realExtensionsDir, { recursive: true });
+    await writeFile(
+      join(realExtensionsDir, "layout.tsx"),
+      `import type { MenuSproutLayoutProps } from "@menusprout/contracts";\n` +
+        `export default function Layout({ widgets, renderWidget }: MenuSproutLayoutProps) {\n` +
+        `  return widgets.map((w) => renderWidget(w.id));\n}\n`,
+    );
+    const extensionsDir = join(rootDir, ".menu-sprout", "extensions");
+    await mkdir(join(rootDir, ".menu-sprout"), { recursive: true });
+    await symlink(realExtensionsDir, extensionsDir);
+
+    const descriptor = await discoverLayoutModule({
+      rootDir,
+      extensionsDir,
+      mode: "compiled",
+      widgetCacheDir: join(rootDir, "cache", "widgets"),
+    });
+
+    expect(descriptor?.moduleUrl).toMatch(/^menu-sprout-widget:\/\/__layout\/[a-f0-9]{16}\/layout\.mjs$/);
+    expect(descriptor?.cssUrl).toMatch(/^menu-sprout-widget:\/\/__layout\/[a-f0-9]{16}\/widget\.css$/);
+  });
+
+  it("excludes the root layout file from widget discovery", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "menu-sprout-layout-registry-"));
+    tempDirs.push(rootDir);
+    const extensionsDir = join(rootDir, "extensions-dev");
+    await mkdir(join(extensionsDir, "cpu-temp"), { recursive: true });
+    await writeFile(join(extensionsDir, "cpu-temp", "widget.tsx"), "export const cpuTempWidget = {};\n");
+    await writeFile(join(extensionsDir, "layout.tsx"), "export default function Layout() { return null; }\n");
+
+    const modules = await discoverWidgetModules({ rootDir, extensionsDir });
+
+    expect(modules.map((module) => module.id)).toEqual(["cpu-temp.widget"]);
+  });
+});

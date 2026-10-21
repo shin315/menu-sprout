@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>RunStrip</title>
+<link rel="stylesheet" href="card.css">
+<style>
+  .strip {
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    display: grid;
+    grid-template-columns: 14px 1fr auto;
+    gap: 10px;
+    align-items: center;
+  }
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--signal-live);
+    box-shadow: var(--signal-live-glow);
+    animation: pulse 1.4s var(--ease-in-out) infinite;
+    justify-self: center;
+  }
+  .lines { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .task { font-size: 13px; color: var(--ink-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .step {
+    font-size: 11px;
+    color: var(--ink-soft);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* Make step text transition softly when it changes */
+    animation: stepFade var(--motion-slow) var(--ease);
+  }
+  .timer { font-size: 11px; color: var(--ink-faint); font-feature-settings: "tnum"; }
+  @keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.55; transform: scale(0.86); } }
+  @keyframes stepFade { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: none; } }
+</style>
+</head>
+<body>
+<div class="card">
+  <span class="label">runstrip · single affordance · current step only · no log history</span>
+  <div class="strip">
+    <span class="dot"></span>
+    <div class="lines">
+      <span class="task">› add cpu temp widget</span>
+      <span class="step">writing the widget</span>
+    </div>
+    <span class="timer">3.2s</span>
+  </div>
+  <p class="note">The subtitle reanimates each time the agent moves to a new step — fade-up in over 280ms. No checklist, no history. When the run completes the strip disappears and a SessionBar takes its place.</p>
+</div>
+</body>
+</html>

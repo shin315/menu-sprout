@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mono details</title>
+<link rel="stylesheet" href="card.css">
+<style>
+  .stack { display: flex; flex-direction: column; gap: 8px; }
+  .block {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-strong);
+    background: var(--bg-card);
+    border: 1px solid var(--line-faint);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+  }
+  .block .dim { color: var(--ink-soft); }
+  .kbdrow { display: flex; gap: 6px; align-items: center; color: var(--ink-muted); font-size: 11px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <span class="label">mono details · paths · code · kbd</span>
+  <div class="stack">
+    <div class="block"><span class="dim">src/main/</span>agent-runtime.ts<span class="dim">:42</span></div>
+    <div class="block"><span class="dim">$</span> pnpm dev</div>
+    <div class="block"><span class="dim">// session begins on send</span></div>
+    <div class="kbdrow">press <kbd>⌘</kbd><kbd>↵</kbd> to send <span style="color:var(--ink-faint)">·</span> <kbd>esc</kbd> to dismiss</div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tracked-caps labels</title>
+<link rel="stylesheet" href="card.css">
+<style>
+  .stack { display: flex; flex-direction: column; gap: 18px; }
+  .lockup {
+    display: flex; flex-direction: column; gap: 4px;
+    background: var(--bg-card);
+    border: 1px solid var(--line-faint);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+  }
+  .lockup .value { font-size: 28px; }
+  .lockup .meta { color: var(--ink-faint); font-size: 11px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <span class="label">tracked-caps · 11px · 0.18em · the workhorse heading</span>
+  <div class="stack">
+    <div class="lockup">
+      <span class="label">claude · weekly</span>
+      <span class="value">72<small>%</small></span>
+      <span class="meta">last sync 12:04 · oauth</span>
+    </div>
+    <div class="lockup">
+      <span class="label">latest change</span>
+      <span class="value">Updated</span>
+      <span class="meta">layout ready</span>
+    </div>
+  </div>
+</div>
+</body>
+</html>

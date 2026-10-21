@@ -1,0 +1,55 @@
+appId: io.github.shin315.menusprout
+productName: Menu Sprout
+copyright: Copyright © 2026 Kun Chen; Copyright © 2026 Shin315 and Menu Sprout contributors
+
+directories:
+  output: release
+
+files:
+  - out/**
+  - package.json
+  # esbuild builds adapters before packaging. At runtime Menu Sprout imports only
+  # acpx/runtime, whose published entry cannot reach acpx's CLI-only tsx path;
+  # tests/acpx-runtime-dependencies.test.ts locks that dependency boundary.
+  - '!node_modules/esbuild/**'
+  - '!node_modules/@esbuild/**'
+
+extraResources:
+  - from: extensions
+    to: extensions-template
+    filter:
+      - AGENTS.md
+      - menusprout-env.d.ts
+      - recipes/**
+      - hello-world/**
+  - from: assets/tray
+    to: tray
+    filter:
+      - menu_sproutTemplate*.png
+  # The woff2 files ship inside out/renderer; their OFL licenses ship here.
+  - from: src/renderer/fonts
+    to: fonts
+    filter:
+      - README.md
+      - "*/OFL.txt"
+
+asar: true
+
+# The clean-room ACP adapters are spawned as standalone Node processes (via
+# Electron-as-node) and cannot be read from inside app.asar, so keep them
+# unpacked alongside the archive.
+asarUnpack:
+  - out/adapters/**
+
+mac:
+  category: public.app-category.developer-tools
+  icon: assets/app-icon.icns
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: assets/entitlements.mac.plist
+  entitlementsInherit: assets/entitlements.mac.plist
+  notarize: true
+  x64ArchFiles: Contents/Resources/app.asar.unpacked/node_modules/{@tailwindcss/oxide-*/**,lightningcss-*/**,lightningcss/**}
+
+dmg:
+  artifactName: Menu-Sprout-${version}-universal.dmg

@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en" data-theme="wireframe">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VND Exchange Rates Widget Recipe</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  </head>
+  <body class="bg-base-200 text-base-content">
+    <main class="mx-auto max-w-4xl space-y-5 p-6 text-base leading-7 sm:p-10 [&_code]:text-sm [&_h2]:mb-3 [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:text-lg [&_h3]:font-semibold [&_li]:mb-1 [&_li]:leading-7 [&_ol]:list-decimal [&_ol]:space-y-1 [&_ol]:pl-6 [&_p]:mb-2 [&_p]:leading-7 [&_pre]:my-3 [&_pre_code]:text-sm [&_section]:space-y-3 [&_table]:text-sm [&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:pl-6">
+      <h1 class="text-3xl font-bold tracking-tight">VND Exchange Rates Widget Recipe</h1>
+
+      <section class="card border border-base-300 bg-base-100 shadow-sm p-6">
+        <h2>Capability</h2>
+        <p>Source real-time foreign currency exchange rates against Vietnamese Dong (VND) from Vietcombank for a menu-sprout widget.</p>
+        <p>Use real bank exchange rate feeds only. When the bank source is unreachable or rate-limited, return an explicit unavailable error or keep the last successful snapshot marked stale. Do not fabricate mock rates.</p>
+        <p><strong>Scope:</strong> this recipe specifies how to fetch, parse, and normalize exchange rate tables from the Joint Stock Commercial Bank for Foreign Trade of Vietnam (Vietcombank). The UI should display authentic Vietnamese banking labels (<code>Tỷ giá Vietcombank</code>, <code>Ngoại tệ</code>, <code>Mua tiền mặt</code>, <code>Mua chuyển khoản</code>, <code>Bán ra</code>) and support major currencies including USD, EUR, JPY, GBP, AUD, SGD, and CNY.</p>
+        <p>This recipe is self-contained. Do not require external source code, websites, or implementation guides to complete it.</p>
+      </section>
+
+      <section class="card border border-base-300 bg-base-100 shadow-sm p-6">
+        <h2>Recommended Data Source Order</h2>
+        <table class="table table-zebra">
+          <thead>
+            <tr><th>Priority</th><th>Source</th><th>Use When</th><th>Expected Data</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td>Vietcombank Official XML Feed (<code>https://portal.vietcombank.com.vn/Usercontrols/TVPortal.TyGia/pXML.aspx</code>)</td>
+              <td>Default live source. Official public XML rate table updated every 5 minutes by Vietcombank. Free and no key required.</td>
+              <td>All foreign currencies against VND, with Cash Buy (<code>Buy</code>), Transfer Buy (<code>Transfer</code>), and Sell (<code>Sell</code>) rates.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card border border-base-300 bg-base-100 shadow-sm p-6">
+        <h2>Live API Details and Response Shapes</h2>
+        <p>Endpoint: <code>GET https://portal.vietcombank.com.vn/Usercontrols/TVPortal.TyGia/pXML.aspx</code></p>
+        <p>Vietcombank notice: <em>For reference only. Only one request every 5 minutes!</em></p>
+        <p>Real live response sample captured from Vietcombank XML feed:</p>
+        <pre class="mockup-code p-4 overflow-auto"><code>&lt;!--For reference only. Only one request every 5 minutes!--&gt;
+&lt;ExrateList&gt;
+  &lt;DateTime&gt;10/4/2026 12:29:19 AM&lt;/DateTime&gt;
+  &lt;Exrate CurrencyCode="USD" CurrencyName="US DOLLAR           " Buy="25,760.00" Transfer="25,790.00" Sell="26,170.00" /&gt;
+  &lt;Exrate CurrencyCode="EUR" CurrencyName="EURO                " Buy="28,474.19" Transfer="28,761.81" Sell="29,975.92" /&gt;
+  &lt;Exrate CurrencyCode="JPY" CurrencyName="YEN                 " Buy="159.04" Transfer="160.64" Sell="170.01" /&gt;
+  &lt;Exrate CurrencyCode="GBP" CurrencyName="POUND STERLING      " Buy="33,428.32" Transfer="33,765.98" Sell="34,848.00" /&gt;
+  &lt;Exrate CurrencyCode="AUD" CurrencyName="AUSTRALIAN DOLLAR   " Buy="17,560.94" Transfer="17,738.33" Sell="18,306.74" /&gt;
+  &lt;Exrate CurrencyCode="SGD" CurrencyName="SINGAPORE DOLLAR    " Buy="19,771.51" Transfer="19,971.22" Sell="20,652.47" /&gt;
+  &lt;Exrate CurrencyCode="CNY" CurrencyName="YUAN RENMINBI       " Buy="3,776.66" Transfer="3,814.80" Sell="3,937.05" /&gt;
+  &lt;Exrate CurrencyCode="KRW" CurrencyName="KOREAN WON          " Buy="16.67" Transfer="18.52" Sell="20.09" /&gt;
+  &lt;Exrate CurrencyCode="THB" CurrencyName="THAILAND BAHT       " Buy="682.94" Transfer="758.82" Sell="791.01" /&gt;
+  &lt;Exrate CurrencyCode="INR" CurrencyName="INDIAN RUPEE        " Buy="-" Transfer="268.21" Sell="279.75" /&gt;
+  &lt;Source&gt;Joint Stock Commercial Bank for Foreign Trade of Vietnam - Vietcombank&lt;/Source&gt;
+&lt;/ExrateList&gt;</code></pre>
+        <p><strong>Parsing considerations:</strong></p>
+        <ul>
+          <li><strong>Number formatting:</strong> Attribute values contain comma thousands separators (e.g. <code>25,760.00</code>). Parse using <code>parseFloat(value.replace(/,/g, ""))</code>.</li>
+          <li><strong>Hyphen values (<code>"-"</code>):</strong> Some currencies do not have an over-the-counter cash buy rate (e.g. INR, DKK) and are denoted by a dash <code>"-"</code>. Map these to <code>undefined</code> or <code>null</code> rather than NaN.</li>
+          <li><strong>Whitespace trimming:</strong> <code>CurrencyName</code> often contains trailing whitespace (e.g. <code>"US DOLLAR           "</code>). Trim strings upon extraction.</li>
+          <li><strong>Update timestamp:</strong> <code>&lt;DateTime&gt;</code> is US-style <code>M/D/YYYY h:mm:ss AM/PM</code> in Vietnam time (UTC+7) with no zone marker. <code>10/4/2026 12:29:19 AM</code> means 4 October 2026 at 00:29:19 UTC+7, not 10 April. Parse it month-first into an ISO timestamp with a <code>+07:00</code> offset, and never display the raw string.</li>
+        </ul>
+
+        <h3>Vietnamese Banking UI Labels</h3>
+        <table class="table table-zebra">
+          <thead>
+            <tr><th>English Concept</th><th>Vietnamese Label</th><th>Example Display</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Widget Title</td><td>Tỷ giá Vietcombank</td><td>Tỷ giá Vietcombank</td></tr>
+            <tr><td>Currency</td><td>Ngoại tệ</td><td>USD / VND</td></tr>
+            <tr><td>Cash Buy Rate</td><td>Mua tiền mặt</td><td>25,760.00 ₫</td></tr>
+            <tr><td>Transfer Buy Rate</td><td>Mua chuyển khoản</td><td>25,790.00 ₫</td></tr>
+            <tr><td>Sell Rate</td><td>Bán ra</td><td>26,170.00 ₫</td></tr>
+            <tr><td>Last Updated</td><td>Cập nhật</td><td>04/10/2026 00:29</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Normalized TypeScript Shape</h3>
+        <pre class="mockup-code p-4 overflow-auto"><code>type ExchangeRateItem = {
+  currencyCode: string;    // "USD", "EUR", "JPY", "GBP", etc.
+  currencyName: string;    // "US DOLLAR", "EURO", etc.
+  buyCash?: number;        // in VND, undefined if cash exchange unavailable
+  buyTransfer: number;     // in VND
+  sell: number;            // in VND
+};
+
+type VndExchangeRatesSnapshot = {
+  source: "vietcombank-xml";
+  bank: "Vietcombank";
+  rates: ExchangeRateItem[];
+  updatedAt: string;       // ISO timestamp (+07:00) parsed from &lt;DateTime&gt;
+  refreshedAt: string;     // ISO timestamp of client fetch
+  stale: boolean;
+};</code></pre>
+      </section>
+
+      <section class="card border border-base-300 bg-base-100 shadow-sm p-6">
+        <h2>Implementation Contract</h2>
+        <p>All network fetching and XML parsing lives in <code>vnd-exchange-rates/server.ts</code> behind <code>window.menuSprout.capabilities.invoke("vnd-exchange-rates", "getExchangeRates", options)</code>. Keep Node and fetch calls in the server action.</p>
+        <p>The renderer widget lives in <code>vnd-exchange-rates/widget.tsx</code> and <code>vnd-exchange-rates/components.tsx</code>. It calls <code>getExchangeRates</code> and renders popular exchange pairs (USD, EUR, JPY, GBP, CNY, etc.) with a clean searchable or tabbed UI.</p>
+        <p>Refresh: export a <code>RefreshableMenuSproutWidget</code> with a 30-minute <code>viewRefreshIntervalMs</code> and a <code>refreshView</code> that calls <code>getExchangeRates</code>; the host also runs <code>refreshView</code> each time the popover opens. 30 minutes is the slowest acceptable visible interval. Respect the bank notice of one request every 5 minutes: if the last-good snapshot in <code>context.db</code> was fetched less than 5 minutes ago, return it instead of calling the feed again. Do not add a background task unless the user explicitly asks for rate monitoring while the popover is closed.</p>
+        <p>Durable data: the server action stores one last-good <code>VndExchangeRatesSnapshot</code> in <code>context.db</code> (for example a single-row <code>vnd_exchange_rates_snapshot</code> table) after every successful fetch and reads it back on failure. Do not rely on module-scope variables for the last-good snapshot or the 5-minute guard; they reset on every code edit and app restart.</p>
+        <p>Server action response shape:</p>
+        <pre class="mockup-code p-4 overflow-auto"><code>type ExchangeRatesResult =
+  | { ok: true; data: VndExchangeRatesSnapshot }
+  | { ok: false; error: string; sourceTried: string[] };</code></pre>
+        <p>Before reporting work done, inspect the real live Vietcombank XML endpoint directly, verify the parser handles numbers and hyphens accurately, and test the widget in the dev environment.</p>
+      </section>
+
+      <section class="card border border-base-300 bg-base-100 shadow-sm p-6">
+        <h2>Error Handling</h2>
+        <ul>
+          <li>If the network request times out, returns HTTP 4xx/5xx, or cannot be parsed, return the last-good snapshot from <code>context.db</code> marked <code>stale: true</code> when one exists.</li>
+          <li>If no cached snapshot exists, return <code>{ ok: false, error: "Vietcombank exchange rates unavailable", sourceTried: ["vietcombank-xml"] }</code>.</li>
+          <li>Never show simulated mock exchange rates when network is unavailable.</li>
+          <li>Set an HTTP request timeout of 10 seconds.</li>
+        </ul>
+      </section>
+
+      <section class="card border border-base-300 bg-base-100 shadow-sm p-6">
+        <h2>Security Constraints</h2>
+        <ul>
+          <li>Keep every network request in <code>vnd-exchange-rates/server.ts</code>; the renderer only calls <code>window.menuSprout.capabilities.invoke</code>.</li>
+          <li>The feed is public and needs no API key, cookie, or account. Never add credentials, tokens, or browser cookies.</li>
+          <li>Store only the normalized <code>VndExchangeRatesSnapshot</code> in <code>context.db</code>, never raw response bodies or request headers.</li>
+        </ul>
+      </section>
+
+      <section class="card border border-base-300 bg-base-100 shadow-sm p-6">
+        <h2>Interactive Demo</h2>
+        <div class="space-y-4">
+          <div class="flex items-center justify-between border-b border-base-300 pb-2">
+            <h3 class="font-bold text-lg">Tỷ Giá Ngoại Tệ Vietcombank (VCB)</h3>
+            <span class="badge badge-neutral badge-sm">Cập nhật 00:29</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Ngoại tệ</th>
+                  <th class="text-right">Mua TM (₫)</th>
+                  <th class="text-right">Mua CK (₫)</th>
+                  <th class="text-right">Bán (₫)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="font-bold">USD</td>
+                  <td class="text-right">25,760.00</td>
+                  <td class="text-right">25,790.00</td>
+                  <td class="text-right font-semibold text-primary">26,170.00</td>
+                </tr>
+                <tr>
+                  <td class="font-bold">EUR</td>
+                  <td class="text-right">28,474.19</td>
+                  <td class="text-right">28,761.81</td>
+                  <td class="text-right font-semibold text-primary">29,975.92</td>
+                </tr>
+                <tr>
+                  <td class="font-bold">JPY</td>
+                  <td class="text-right">159.04</td>
+                  <td class="text-right">160.64</td>
+                  <td class="text-right font-semibold text-primary">170.01</td>
+                </tr>
+                <tr>
+                  <td class="font-bold">GBP</td>
+                  <td class="text-right">33,428.32</td>
+                  <td class="text-right">33,765.98</td>
+                  <td class="text-right font-semibold text-primary">34,848.00</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="flex items-center justify-between text-xs text-base-content/60 pt-1">
+            <span>Nguồn: Ngân hàng TMCP Ngoại thương Việt Nam</span>
+            <span>Đơn vị: VNĐ</span>
+          </div>
+          <p class="text-sm">Demo uses real Vietcombank XML sample rates. The shipped widget loads live rates through the server action.</p>
+        </div>
+      </section>
+
+      <section class="card border border-base-300 bg-base-100 shadow-sm p-6">
+        <h2>Acceptance Criteria</h2>
+        <ul>
+          <li>The extension exposes a <code>getExchangeRates</code> server action in <code>vnd-exchange-rates/server.ts</code>.</li>
+          <li>The server action fetches official rates directly from Vietcombank's public endpoint (<code>https://portal.vietcombank.com.vn/Usercontrols/TVPortal.TyGia/pXML.aspx</code>).</li>
+          <li>The parser strips thousands comma separators and maps hyphen (<code>"-"</code>) cash rates to <code>undefined</code>.</li>
+          <li>Normalized snapshot contains essential currencies: USD, EUR, JPY, GBP, AUD, SGD, CNY.</li>
+          <li>The UI features authentic Vietnamese banking labels: <code>Tỷ giá Vietcombank</code>, <code>Mua tiền mặt</code>, <code>Mua chuyển khoản</code>, <code>Bán ra</code>.</li>
+          <li>Unreachable bank endpoints return last-good stale data or a structured failure error; no mock rates.</li>
+          <li>The implementer verifies the finished server action against the live Vietcombank feed before reporting done.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

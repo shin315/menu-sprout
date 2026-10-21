@@ -1,0 +1,64 @@
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+    # release-please opens its release PR with GITHUB_TOKEN, which creates a
+    # pull_request run that can only sit in action_required. Its output set is
+    # exactly these files, so excluding them means no run is ever created.
+    paths-ignore:
+      - .release-please-manifest.json
+      - CHANGELOG.md
+      - package.json
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    name: typecheck / test / build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.1.1
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify generated contract types are up to date
+        run: |
+          set -eu
+          pnpm generate:contracts
+          if ! git diff --quiet -- extensions/menusprout-env.d.ts; then
+            {
+              echo "::error file=extensions/menusprout-env.d.ts::Generated contract types are out of date."
+              echo "extensions/menusprout-env.d.ts no longer matches src/shared/contracts.ts."
+              echo "Run 'pnpm generate:contracts' locally and commit the result."
+              echo
+              git --no-pager diff -- extensions/menusprout-env.d.ts
+            } >&2
+            exit 1
+          fi
+          echo "Generated contract types are up to date."
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build

@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en" data-theme="wireframe">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vietnamese Lunar Calendar Widget Recipe</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  </head>
+  <body class="bg-base-200 text-base-content">
+    <main class="mx-auto max-w-4xl space-y-5 p-6 text-base leading-7 sm:p-10 [&_code]:text-sm [&_h2]:mb-3 [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:text-lg [&_h3]:font-semibold [&_li]:mb-1 [&_li]:leading-7 [&_ol]:list-decimal [&_ol]:space-y-1 [&_ol]:pl-6 [&_p]:mb-2 [&_p]:leading-7 [&_pre]:my-3 [&_pre_code]:text-sm [&_section]:space-y-3 [&_table]:text-sm [&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:pl-6">
+      <h1 class="text-3xl font-bold tracking-tight">Vietnamese Lunar Calendar Widget Recipe</h1>
+
+      <section class="card border border-base-300 bg-base-100 shadow-sm p-6">
+        <h2>Capability</h2>
+        <p>Display today's Vietnamese lunar calendar date (âm lịch): lunar day, month, and year, the year's sexagenary name (Can Chi), and whether the month is a leap month (tháng nhuận), for a menu-sprout widget.</p>
+        <p>Compute the lunar date locally using the astronomical algorithm below rather than scraping web pages. The calculation runs offline on device with no external network calls.</p>
+        <p><strong>Scope:</strong> this recipe provides the full, self-contained astronomical conversion algorithm (UTC+7 Hanoi standard by Hồ Ngọc Đức based on Jean Meeus) and the year Can Chi formula. UI presentation uses standard Vietnamese calendar labels (<code>Âm lịch</code>, <code>Dương lịch</code>, <code>Can Chi</code>, <code>Nhuận</code>).</p>
+        <p>This recipe is self-contained. Do not require external source code, websites, or implementation guides to complete it.</p>
+      </section>
+
+      <section class="card border border-base-300 bg-base-100 shadow-sm p-6">
+        <h2>Recommended Data Source Order</h2>
+        <table class="table table-zebra">
+          <thead>
+            <tr><th>Priority</th><th>Source</th><th>Use When</th><th>Expected Data</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td>Local Astronomical Algorithm (UTC+7)</td>
+              <td>Always. Runs fully offline on device with zero latency and complete precision.</td>
+              <td>Solar to lunar conversion (day, month, year, leap month) and the year Can Chi.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card border border-base-300 bg-base-100 shadow-sm p-6">
+        <h2>Astronomical Algorithm and Formulas</h2>
+        <p>The Vietnamese lunar calendar is an astronomical lunisolar calendar based on the movements of the Sun and the Moon, calculated for the UTC+7:00 time zone (Hanoi meridian 105°E). Below is the self-contained calculation logic to copy into <code>vietnamese-lunar-calendar/lunar-calc.ts</code>:</p>
+
+        <pre class="mockup-code p-4 overflow-auto"><code id="lunar-algorithm">export function jdFromDate(dd: number, mm: number, yy: number): number {
+  const a = Math.floor((14 - mm) / 12);
+  const y = yy + 4800 - a;
+  const m = mm + 12 * a - 3;
+  let jd = dd + Math.floor((153 * m + 2) / 5) + 365 * y + Math.floor(y / 4) - Math.floor(y / 100) + Math.floor(y / 400) - 32045;
+  if (jd &lt; 2299161) {
+    jd = dd + Math.floor((153 * m + 2) / 5) + 365 * y + Math.floor(y / 4) - 32083;
+  }
+  return jd;
+}
+
+function NewMoon(k: number): number {
+  const T = k / 1236.85;
+  const T2 = T * T;
+  const T3 = T2 * T;
+  const dr = Math.PI / 180;
+  let Jd1 = 2415020.75933 + 29.53058868 * k + 0.0001178 * T2 - 0.000000155 * T3;
+  Jd1 += 0.00033 * Math.sin((166.56 + 132.87 * T - 0.009173 * T2) * dr);
+  const M = 359.2242 + 29.10535608 * k - 0.0000333 * T2 - 0.00000347 * T3;
+  const Mpr = 306.0253 + 385.81691806 * k + 0.0107306 * T2 + 0.00001236 * T3;
+  const F = 21.2964 + 390.67050646 * k - 0.0016528 * T2 - 0.00000239 * T3;
+  let C1 = (0.1734 - 0.000393 * T) * Math.sin(M * dr) + 0.0021 * Math.sin(2 * dr * M);
+  C1 = C1 - 0.4068 * Math.sin(Mpr * dr) + 0.0161 * Math.sin(dr * 2 * Mpr);
+  C1 = C1 - 0.0004 * Math.sin(dr * 3 * Mpr);
+  C1 = C1 + 0.0104 * Math.sin(dr * 2 * F) - 0.0051 * Math.sin(dr * (M + Mpr));
+  C1 = C1 - 0.0074 * Math.sin(dr * (M - Mpr)) + 0.0004 * Math.sin(dr * (2 * F + M));
+  C1 = C1 - 0.0004 * Math.sin(dr * (2 * F - M)) - 0.0006 * Math.sin(dr * (2 * F + Mpr));
+  C1 = C1 + 0.0010 * Math.sin(dr * (2 * F - Mpr)) + 0.0005 * Math.sin(dr * (2 * Mpr + M));
+  const deltat = T &lt; -11
+    ? 0.001 + 0.000839 * T + 0.0002261 * T2 - 0.00000845 * T3 - 0.000000081 * T * T3
+    : -0.000278 + 0.000265 * T + 0.000262 * T2;
+  return Jd1 + C1 - deltat;
+}
+
+function SunLongitude(jdn: number): number {
+  const T = (jdn - 2451545.0) / 36525;
+  const T2 = T * T;
+  const dr = Math.PI / 180;
+  const M = 357.52910 + 35999.05030 * T - 0.0001559 * T2 - 0.00000048 * T * T2;
+  const L0 = 280.46645 + 36000.76983 * T + 0.0003032 * T2;
+  let DL = (1.914600 - 0.004817 * T - 0.000014 * T2) * Math.sin(dr * M);
+  DL += (0.019993 - 0.000101 * T) * Math.sin(dr * 2 * M) + 0.000290 * Math.sin(dr * 3 * M);
+  let L = (L0 + DL) * dr;
+  L = L - Math.PI * 2 * Math.floor(L / (Math.PI * 2));
+  return L;
+}
+
+function getSunLongitude(dayNumber: number, timeZone = 7): number {
+  return Math.floor(SunLongitude(dayNumber - 0.5 - timeZone / 24) / Math.PI * 6);
+}
+
+function getNewMoonDay(k: number, timeZone = 7): number {
+  return Math.floor(NewMoon(k) + 0.5 + timeZone / 24);
+}
+
+function getLunarMonth11(yy: number, timeZone = 7): number {
+  const off = jdFromDate(31, 12, yy) - 2415021;
+  const k = Math.floor(off / 29.530588853);
+  let nm = getNewMoonDay(k, timeZone);
+  const sunLong = getSunLongitude(nm, timeZone);
+  if (sunLong &gt;= 9) nm = getNewMoonDay(k - 1, timeZone);
+  return nm;
+}
+
+function getLeapMonthOffset(a11: number, timeZone = 7): number {
+  const k = Math.floor((a11 - 2415021.076998695) / 29.530588853 + 0.5);
+  let last = 0;
+  let i = 1;
+  let arc = getSunLongitude(getNewMoonDay(k + i, timeZone), timeZone);
+  do {
+    last = arc;
+    i++;
+    arc = getSunLongitude(getNewMoonDay(k + i, timeZone), timeZone);
+  } while (arc !== last &amp;&amp; i &lt; 14);
+  return i - 1;
+}
+
+export function convertSolar2Lunar(dd: number, mm: number, yy: number, timeZone = 7) {
+  const dayNumber = jdFromDate(dd, mm, yy);
+  const k = Math.floor((dayNumber - 2415021.076998695) / 29.530588853);
+  let monthStart = getNewMoonDay(k + 1, timeZone);
+  if (monthStart &gt; dayNumber) monthStart = getNewMoonDay(k, timeZone);
+  if (monthStart &gt; dayNumber) monthStart = getNewMoonDay(k - 1, timeZone);
+  let a11 = getLunarMonth11(yy, timeZone);
+  let b11 = a11;
+  let lunarYear: number;
+  if (a11 &gt;= monthStart) {
+    lunarYear = yy;
+    a11 = getLunarMonth11(yy - 1, timeZone);
+  } else {
+    lunarYear = yy + 1;
+    b11 = getLunarMonth11(yy + 1, timeZone);
+  }
+  const lunarDay = dayNumber - monthStart + 1;
+  const diff = Math.floor((monthStart - a11) / 29);
+  let lunarLeap = 0;
+  let lunarMonth = diff + 11;
+  if (b11 - a11 &gt; 365) {
+    const leapMonthDiff = getLeapMonthOffset(a11, timeZone);
+    if (diff &gt;= leapMonthDiff) {
+      lunarMonth = diff + 10;
+      if (diff === leapMonthDiff) lunarLeap = 1;
+    }
+  }
+  if (lunarMonth &gt; 12) lunarMonth -= 12;
+  if (lunarMonth &gt;= 11 &amp;&amp; diff &lt; 4) lunarYear -= 1;
+  return { lunarDay, lunarMonth, lunarYear, lunarLeap, jd: dayNumber };
+}</code></pre>
+
+        <h3>Year Can Chi (Sexagenary Cycle)</h3>
+        <p>Ten Heavenly Stems (Can): <code>["Giáp", "Ất", "Bính", "Đinh", "Mậu", "Kỷ", "Canh", "Tân", "Nhâm", "Quý"]</code></p>
+        <p>Twelve Earthly Branches (Chi): <code>["Tý", "Sửu", "Dần", "Mão", "Thìn", "Tỵ", "Ngọ", "Mùi", "Thân", "Dậu", "Tuất", "Hợi"]</code></p>
+        <p>For the lunar year returned by <code>convertSolar2Lunar</code>: Can index = <code>(lunarYear + 6) % 10</code>, Chi index = <code>(lunarYear + 8) % 12</code>. For example, lunar year 2026 is <code>Bính Ngọ</code>.</p>
+
+        <h3>Normalized TypeScript Shape</h3>
+        <pre class="mockup-code p-4 overflow-auto"><code>type LunarDateSnapshot = {
+  solar: {
+    day: number;
+    month: number;
+    year: number;
+  };
+  lunar: {
+    day: number;
+    month: number;
+    year: number;
+    isLeap: boolean;         // true when lunarLeap === 1 (tháng nhuận)
+  };
+  yearCanChi: string;        // e.g. "Bính Ngọ"
+};</code></pre>
+      </section>
+
+      <section class="card border border-base-300 bg-base-100 shadow-sm p-6">
+        <h2>Implementation Contract</h2>
+        <p>This is pure local computation with no filesystem, shell, network, credential, or token access, so it needs no server action. Copy the algorithm into <code>vietnamese-lunar-calendar/lunar-calc.ts</code> and call it from the widget.</p>
+        <p>The renderer widget lives in <code>vietnamese-lunar-calendar/widget.tsx</code> and <code>vietnamese-lunar-calendar/components.tsx</code>. It displays today's solar date and the lunar day, month, and year, the year Can Chi, and a <code>Nhuận</code> marker when the month is a leap month.</p>
+        <p>"Today" is the current calendar date in UTC+7 (Vietnam standard time), not the machine's local time zone.</p>
+        <p>Refresh: export a <code>RefreshableMenuSproutWidget</code> whose <code>refreshView</code> recomputes the snapshot so it is current each time the popover opens. The date changes once a day, so a slow visible interval such as 60 seconds is enough to catch midnight rollover while the popover is open. Do not add a background task or persist anything to <code>db</code>; the snapshot is cheap to recompute.</p>
+        <p>Before reporting work done, run the finished <code>lunar-calc.ts</code> against the known dates in the acceptance criteria and confirm the rendered widget shows the matching values.</p>
+      </section>
+
+      <section class="card border border-base-300 bg-base-100 shadow-sm p-6">
+        <h2>Error Handling</h2>
+        <ul>
+          <li>The algorithm is valid for solar years 1800 to 2199. Outside that range, render an explicit unavailable state instead of a computed date.</li>
+          <li>Never render placeholder or mock lunar dates.</li>
+        </ul>
+      </section>
+
+      <section class="card border border-base-300 bg-base-100 shadow-sm p-6">
+        <h2>Security Constraints</h2>
+        <ul>
+          <li>Make no network requests; the calculation must run fully offline.</li>
+          <li>Do not read files, spawn commands, or use credentials.</li>
+        </ul>
+      </section>
+
+      <section class="card border border-base-300 bg-base-100 shadow-sm p-6">
+        <h2>Interactive Demo</h2>
+        <div class="space-y-4">
+          <div class="flex items-center justify-between border-b border-base-300 pb-2">
+            <div>
+              <span class="text-xs uppercase tracking-wider text-base-content/60">Dương lịch 04/10/2026</span>
+              <h3 class="font-bold text-xl text-primary">24/8 Năm Bính Ngọ</h3>
+            </div>
+            <div class="badge badge-primary">Âm lịch</div>
+          </div>
+          <p class="text-sm">Demo shows the local astronomical calculation for 2026-10-04. No network traffic required.</p>
+        </div>
+      </section>
+
+      <section class="card border border-base-300 bg-base-100 shadow-sm p-6">
+        <h2>Acceptance Criteria</h2>
+        <ul>
+          <li>The extension includes the self-contained astronomical conversion algorithm above, based on the UTC+7 Hanoi meridian standard, copied exactly.</li>
+          <li>The widget computes today's lunar day, month, and year and the leap-month flag without network requests or dependencies.</li>
+          <li>The year Can Chi is computed from the lunar year.</li>
+          <li>The UI uses Vietnamese calendar labels: <code>Âm lịch</code>, <code>Dương lịch</code>, <code>Can Chi</code>, and <code>Nhuận</code> for leap months.</li>
+          <li>Verification confirms exact matches on known dates: 04/10/2026 is 24/8 Bính Ngọ; 17/02/2026 is 1/1 Bính Ngọ (Tết); 27/11/2008 is 1/11 Mậu Tý; 23/06/2028 is 1/5 nhuận Mậu Thân.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Shadow + depth</title>
+<link rel="stylesheet" href="card.css">
+<style>
+  body { background: radial-gradient(50% 60% at 50% 40%, #1a1818 0%, #050505 80%); }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .col { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+  .demo {
+    width: 100%;
+    height: 120px;
+    background: var(--bg-stage);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-xl);
+  }
+  .lines { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+  .ln {
+    height: 0;
+    border-top: 1px solid var(--line);
+    width: 100%;
+  }
+  .ln.faint { border-top: 1px solid var(--line-faint); }
+  .ln.dashed { border-top: 1px dashed var(--line-faint); }
+  .ln-row { display: flex; align-items: center; gap: 12px; }
+  .ln-row .lbl { color: var(--ink-soft); font-size: 11px; min-width: 96px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <span class="label">shadow + dividers · darkness, not depth · hairlines, not borders</span>
+  <div class="row">
+    <div class="col">
+      <div class="demo" style="box-shadow: var(--shadow-pop)"></div>
+      <span class="swatch-name">--shadow-pop · popover cast on desktop</span>
+    </div>
+    <div class="col" style="justify-content:center">
+      <div class="lines">
+        <div class="ln-row"><span class="lbl">--line</span><span class="ln"></span></div>
+        <div class="ln-row"><span class="lbl">--line-faint</span><span class="ln faint"></span></div>
+        <div class="ln-row"><span class="lbl">dashed</span><span class="ln dashed"></span></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

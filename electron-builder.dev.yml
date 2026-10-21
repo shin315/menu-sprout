@@ -1,0 +1,13 @@
+# Local/dev packaging config. CI release builds use electron-builder.yml directly.
+# A distinct appId + productName keeps locally-built bundles from colliding with
+# the installed release app in macOS LaunchServices, so `open -a "Menu Sprout"` and
+# login items always resolve to the released /Applications copy instead of a
+# stale local build.
+extends: ./electron-builder.yml
+appId: io.github.shin315.menusprout.dev
+productName: Menu Sprout Dev
+
+# Local packages deliberately remain ad-hoc signed and are never notarized.
+mac:
+  identity: null
+  notarize: false

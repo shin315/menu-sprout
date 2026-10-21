@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Persistent composer</title>
+<link rel="stylesheet" href="card.css">
+<style>
+  .wrap {
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .wrap.focus { border-color: rgba(106,227,182,0.45); }
+  .wrap .prompt {
+    color: var(--signal-live);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: var(--weight-med);
+  }
+  .wrap .text {
+    flex: 1;
+    color: var(--ink-200);
+    font: inherit;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  .wrap .placeholder { color: var(--ink-faint); }
+  .wrap .caret {
+    display: inline-block;
+    width: 7px;
+    height: 14px;
+    background: var(--ink-200);
+    margin-left: -4px;
+    vertical-align: -2px;
+    animation: blink 1.1s steps(2, start) infinite;
+  }
+  .wrap .send {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: var(--weight-med);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .wrap.focus .send { color: var(--signal-live); }
+  .wrap.empty  .send { color: var(--ink-faint); }
+  @keyframes blink { to { visibility: hidden; } }
+
+  .label-row { display: flex; align-items: center; gap: 8px; }
+  .ix { font-family: var(--font-mono); font-size: 11px; color: var(--ink-faint); letter-spacing: 0.14em; text-transform: uppercase; }
+</style>
+</head>
+<body>
+<div class="card">
+  <span class="label">persistent composer · one bar at the bottom · no mode toggle</span>
+
+  <div class="label-row"><span class="ix">resting · empty</span></div>
+  <div class="wrap empty">
+    <span class="prompt">›</span>
+    <span class="text"><span class="placeholder">talk to the sprout</span><span class="caret"></span></span>
+    <span class="send">send</span>
+  </div>
+
+  <div class="label-row"><span class="ix">focused · typing</span></div>
+  <div class="wrap focus">
+    <span class="prompt">›</span>
+    <span class="text">add a widget that shows my cpu temp</span>
+    <span class="send">send</span>
+  </div>
+
+  <p class="note">One slim row pinned to the bottom of the main menu and idle agent surface; settings replaces the body and hides the composer, and an in-flight run replaces it with the RunStrip. Border glows mint when focused. The composer auto-grows to a second line if the user keeps typing, but never reserves vertical space pre-emptively. Recipes (when relevant) appear as a single subtle suggestion inline, not as a chip strip.</p>
+</div>
+</body>
+</html>

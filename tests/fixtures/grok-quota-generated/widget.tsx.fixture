@@ -1,0 +1,240 @@
+import { useSyncExternalStore } from "react";
+import { Button } from "@menusprout/ui";
+import type { RefreshableMenuSproutWidget } from "@menusprout/contracts";
+
+type QuotaWindow = {
+  id: string;
+  label: string;
+  percentUsed: number;
+  percentRemaining?: number;
+  resetAt?: string;
+  provenance: {
+    percentageField: string;
+    resetField?: string;
+  };
+};
+
+type QuotaFailure = {
+  kind: string;
+  message: string;
+};
+
+type QuotaResult =
+  | {
+      ok: true;
+      checkedAt: string;
+      data: {
+        schemaVersion: number;
+        source: "grok-credits-grpc-web";
+        sourceVersion: 1;
+        operation: "grok_api_v2.GrokBuildBilling.GetGrokCreditsConfig";
+        period: {
+          type: "weekly" | "monthly" | "unspecified";
+          startAt?: string;
+          endAt?: string;
+          provenance: "config.currentPeriod";
+        };
+        windows: QuotaWindow[];
+        credits?: { remaining?: number; unit?: string; sourceField: string };
+        refreshedAt: string;
+        stale: boolean;
+      };
+      warning?: QuotaFailure;
+    }
+  | { ok: false; checkedAt: string; failure?: QuotaFailure; error?: string };
+
+type ViewState = {
+  refreshing: boolean;
+  completedRefreshes: number;
+  result: QuotaResult | null;
+};
+
+const EXTENSION_ID = "grok-quota-e2e";
+let state: ViewState = { refreshing: false, completedRefreshes: 0, result: null };
+let refreshInFlight: Promise<void> | undefined;
+const listeners = new Set<() => void>();
+
+function emit(next: ViewState): void {
+  state = next;
+  for (const listener of listeners) listener();
+}
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+function snapshot(): ViewState {
+  return state;
+}
+
+async function refreshQuota(): Promise<void> {
+  if (refreshInFlight) return refreshInFlight;
+  emit({ ...state, refreshing: true });
+  refreshInFlight = (async () => {
+    try {
+      const result = await window.menuSprout.capabilities.invoke<QuotaResult>(EXTENSION_ID, "getQuota");
+      emit({ refreshing: false, completedRefreshes: state.completedRefreshes + 1, result });
+    } catch (error) {
+      emit({
+        refreshing: false,
+        completedRefreshes: state.completedRefreshes + 1,
+        result: {
+          ok: false,
+          checkedAt: new Date().toISOString(),
+          failure: {
+            kind: "bridge_failure",
+            message: error instanceof Error ? error.message : "Grok quota request failed",
+          },
+        },
+      });
+    }
+  })().finally(() => {
+    refreshInFlight = undefined;
+  });
+  return refreshInFlight;
+}
+
+function resetCopy(resetAt: string | undefined): string | null {
+  if (!resetAt) return null;
+  const reset = Date.parse(resetAt);
+  if (Number.isNaN(reset)) return null;
+  const hours = Math.max(0, Math.ceil((reset - Date.now()) / 3_600_000));
+  return `reset ${hours}h`;
+}
+
+function checkedCopy(checkedAt: string): string {
+  const checked = Date.parse(checkedAt);
+  if (Number.isNaN(checked)) return "last checked";
+  return `last checked ${new Date(checked).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+}
+
+function GrokQuotaE2EView() {
+  const view = useSyncExternalStore(subscribe, snapshot);
+  const refreshButton = (
+    <Button data-grok-refresh="true" size="sm" variant="ghost" onClick={() => void refreshQuota()} disabled={view.refreshing}>
+      {view.refreshing ? "checking" : "refresh"}
+    </Button>
+  );
+
+  if (!view.result) {
+    return (
+      <div
+        className="flex flex-col gap-3"
+        data-grok-e2e="waiting"
+        data-grok-checked-at=""
+        data-grok-stale="false"
+        data-grok-warning-kind="none"
+        data-grok-failure-kind="none"
+        data-grok-cache-schema=""
+        data-grok-source=""
+        data-grok-source-version=""
+        data-grok-operation=""
+        data-grok-period=""
+        data-grok-percent-used=""
+        data-grok-percent-remaining=""
+        data-grok-percentage-field=""
+        data-grok-reset-at=""
+        data-grok-reset-field=""
+        data-grok-products="[]"
+        data-grok-completed-acquisitions={String(view.completedRefreshes)}
+      >
+        <div className="text-sm text-ink-strong">Grok quota check pending</div>
+        <div className="text-xxs uppercase tracking-caps text-ink-label">checked {view.completedRefreshes}</div>
+        {refreshButton}
+      </div>
+    );
+  }
+
+  if (!view.result.ok) {
+    const failure = view.result.failure;
+    return (
+      <div
+        className="flex flex-col gap-3"
+        data-grok-e2e="failure"
+        data-grok-checked-at={view.result.checkedAt}
+        data-grok-stale="false"
+        data-grok-warning-kind="none"
+        data-grok-failure-kind={failure?.kind ?? "unknown"}
+        data-grok-cache-schema=""
+        data-grok-source=""
+        data-grok-source-version=""
+        data-grok-operation=""
+        data-grok-period=""
+        data-grok-percent-used=""
+        data-grok-percent-remaining=""
+        data-grok-percentage-field=""
+        data-grok-reset-at=""
+        data-grok-reset-field=""
+        data-grok-products="[]"
+        data-grok-completed-acquisitions={String(view.completedRefreshes)}
+      >
+        <div className="text-sm text-ink-strong">{failure?.message ?? view.result.error ?? "Grok quota unavailable"}</div>
+        <div className="text-xxs uppercase tracking-caps text-ink-label">{failure?.kind ?? "unknown"}</div>
+        <div className="text-xxs uppercase tracking-caps text-ink-label">{checkedCopy(view.result.checkedAt)}</div>
+        <div className="text-xxs uppercase tracking-caps text-ink-label">checked {view.completedRefreshes}</div>
+        {refreshButton}
+      </div>
+    );
+  }
+
+  const primary = view.result.data.windows.find((window) => window.id === "credits") ?? view.result.data.windows[0];
+  const remaining = primary?.percentRemaining ?? (primary ? Math.max(0, 100 - primary.percentUsed) : undefined);
+  const productWindows = view.result.data.windows.filter((window) => window.id.startsWith("product:"));
+  const products = productWindows.map((window) => ({ id: window.id, percentUsed: window.percentUsed }));
+  const credits = view.result.data.credits?.remaining;
+  return (
+    <div
+      className="flex flex-col gap-3"
+      data-grok-e2e="success"
+      data-grok-checked-at={view.result.checkedAt}
+      data-grok-stale={String(view.result.data.stale)}
+      data-grok-warning-kind={view.result.warning?.kind ?? "none"}
+      data-grok-failure-kind="none"
+      data-grok-cache-schema={String(view.result.data.schemaVersion)}
+      data-grok-source={view.result.data.source}
+      data-grok-source-version={String(view.result.data.sourceVersion)}
+      data-grok-operation={view.result.data.operation}
+      data-grok-period={view.result.data.period.type}
+      data-grok-percent-used={primary ? String(primary.percentUsed) : ""}
+      data-grok-percent-remaining={remaining === undefined ? "" : String(remaining)}
+      data-grok-percentage-field={primary?.provenance.percentageField ?? ""}
+      data-grok-reset-at={primary?.resetAt ?? ""}
+      data-grok-reset-field={primary?.provenance.resetField ?? ""}
+      data-grok-products={JSON.stringify(products)}
+      data-grok-completed-acquisitions={String(view.completedRefreshes)}
+    >
+      <div className="text-xxs uppercase tracking-caps text-ink-label">
+        {view.result.data.period.type === "unspecified" ? "Credits" : view.result.data.period.type}
+      </div>
+      <div className="text-sm text-ink-strong">
+        {primary ? `${Math.round(primary.percentUsed)}% used` : "--"}
+      </div>
+      <div className="text-xxs uppercase tracking-caps text-ink-label">
+        {remaining === undefined ? "--" : `${Math.round(remaining)}% left`}
+      </div>
+      {productWindows.filter((window) => window.percentUsed > 0).map((window) => (
+        <div className="flex items-baseline justify-between gap-3 text-xxs uppercase tracking-caps" key={window.id}>
+          <span className="text-ink-label">{window.label}</span>
+          <span className="text-ink-strong">{Math.round(window.percentUsed)}% used</span>
+        </div>
+      ))}
+      {primary ? <div className="text-xxs uppercase tracking-caps text-ink-label">{resetCopy(primary.resetAt)}</div> : null}
+      {credits !== undefined ? <div className="text-xxs uppercase tracking-caps text-ink-label">{credits} credits</div> : null}
+      {view.result.warning ? (
+        <div className="text-xxs uppercase tracking-caps text-signal-warn">{view.result.warning.kind}</div>
+      ) : null}
+      <div className="text-xxs uppercase tracking-caps text-ink-label">{checkedCopy(view.result.checkedAt)}</div>
+      <div className="text-xxs uppercase tracking-caps text-ink-label">checked {view.completedRefreshes}</div>
+      {refreshButton}
+    </div>
+  );
+}
+
+export const grokQuotaE2EWidget: RefreshableMenuSproutWidget = {
+  id: EXTENSION_ID,
+  title: "GROK QUOTA E2E",
+  viewRefreshIntervalMs: 300_000,
+  refreshView: refreshQuota,
+  render: () => <GrokQuotaE2EView />,
+};

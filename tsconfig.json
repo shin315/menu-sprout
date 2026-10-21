@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "allowJs": false,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "types": ["node", "vitest/globals"],
+    "paths": {
+      "@menusprout/contracts": ["./src/shared/contracts.ts"],
+      "@menusprout/ui": ["./src/ui/index.ts"]
+    }
+  },
+  "include": ["electron.vite.config.ts", "vitest.config.ts", "src", "extensions", "tests"],
+  "exclude": ["extensions/menusprout-env.d.ts"]
+}

@@ -1,0 +1,656 @@
+@import url("./colors_and_type.css");
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  width: 100%;
+  background: var(--bg-stage);
+}
+
+body {
+  overflow: hidden;
+}
+
+button,
+textarea {
+  font: inherit;
+}
+
+button {
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+/* Native-feel cursors: arrow everywhere, I-beam only in editable fields,
+   pointer on controls. cursor inherits, so the root rule sets the default
+   and interactive elements override it. */
+html {
+  cursor: default;
+}
+
+input,
+textarea,
+[contenteditable="true"] {
+  cursor: text;
+}
+
+button,
+[role="button"],
+a[href] {
+  cursor: pointer;
+}
+
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+.app-shell {
+  position: relative;
+  /* Fills the popover window, whose width the main process sizes to the reported
+     content width (the historical 504 by default, or the active layout canvas
+     plus host chrome). So both dimensions adapt to the content. */
+  width: 100%;
+  height: auto;
+  /* A fixed cap, not a viewport-relative one: the viewport height equals the
+     auto-sized window, so capping to it would ratchet the popover - it could
+     shrink but never grow back. The main process clamps the reported height. */
+  max-height: 720px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-stage);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-pop);
+  color: var(--ink);
+}
+
+/* The default view fills the shell as its own flex column so the header pins,
+   the body scrolls, and the composer stays at the bottom - mirroring the shell
+   layout it used to be inlined into. It stays mounted under .settings-overlay. */
+.app-view {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Settings is a full-surface overlay, not a separate route: it covers the
+   default view (which stays mounted underneath) with an opaque background so
+   even translucent themes hide the underlying content without backdrop blur.
+   Absolutely positioned so it does not contribute to the shell's auto-height;
+   the shell stays sized to the default view, and
+   the shell's overflow:hidden clips these square corners to the rounded card. */
+.settings-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-void);
+}
+
+.pop-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.pop-head .mark {
+  color: var(--ink-200);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.pop-head .sep {
+  color: var(--signal-live);
+}
+
+/* The scroll region. The window auto-extends to fit content (app-shell grows to
+   its 720px max), so this only scrolls once the window is actually maxed out -
+   the header and composer stay pinned via flex: 0 0 auto. */
+.pop-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 12px 14px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.pop-body::-webkit-scrollbar {
+  width: 4px;
+}
+
+.pop-body::-webkit-scrollbar-thumb {
+  background: var(--ink-800);
+  border-radius: var(--radius-pill);
+}
+
+.menu-surface {
+  min-height: 0;
+}
+
+/* An agent-authored layout owns its arrangement and its own width. The canvas
+   shrink-wraps it (max-content) so its intrinsic width is measurable even while
+   the popover window is still narrower, letting the host grow the window by the
+   canvas width plus the symmetric shell/body chrome. */
+.widget-canvas {
+  width: max-content;
+}
+
+.widget-host {
+  display: flex;
+  flex-direction: column;
+  margin: 0 -4px;
+  padding: 0 4px;
+}
+
+.widget {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px dashed var(--line-faint);
+}
+
+.widget:first-child {
+  padding-top: 4px;
+}
+
+.widget:last-child {
+  padding-bottom: 4px;
+  border-bottom: 0;
+}
+
+/* Shown in place of a widget (or the whole menu surface) that threw while
+   rendering. Compact, theme-colored, and the only thing that slot shows. */
+.render-error {
+  display: grid;
+  grid-template-columns: 8px 1fr;
+  align-items: start;
+  gap: 4px 10px;
+  color: var(--signal-error);
+}
+
+.render-error .re-dot {
+  width: 8px;
+  height: 8px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.render-error .re-msg {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--ink-strong);
+  font-size: 12px;
+}
+
+.render-error .re-reason {
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+.render-error .re-actions {
+  grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.render-error .re-note {
+  color: var(--ink-soft);
+  font-size: 10px;
+}
+
+.quota-widget,
+.widget > div {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.value-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.value-row .value,
+.quota-widget .value {
+  font-size: 32px;
+}
+
+.progress {
+  position: relative;
+  height: 1px;
+  background: var(--ink-800);
+}
+
+.progress .fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--signal-live);
+  box-shadow: 0 0 4px rgba(106, 227, 182, 0.45);
+  transition: width var(--motion-slow) var(--ease-in-out);
+}
+
+.progress .fill::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  right: -1px;
+  width: 3px;
+  height: 5px;
+  background: var(--signal-live);
+  box-shadow: 0 0 4px var(--signal-live);
+}
+
+.foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--ink-faint);
+  font-size: 10px;
+  font-feature-settings: "tnum";
+}
+
+.foot .src {
+  display: inline-flex;
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  color: var(--ink-soft);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.runstrip {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: 14px 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--line);
+  background: var(--bg-stage);
+}
+
+.runstrip .dot {
+  width: 8px;
+  height: 8px;
+  justify-self: center;
+  border-radius: 50%;
+  background: var(--signal-live);
+  box-shadow: var(--signal-live-glow);
+  animation: pulse 1.4s var(--ease-in-out) infinite;
+}
+
+.runstrip .lines {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.runstrip .task {
+  overflow: hidden;
+  color: var(--ink-strong);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.runstrip .step {
+  overflow: hidden;
+  color: var(--ink-soft);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  animation: stepFade var(--motion-slow) var(--ease);
+}
+
+.runstrip .timer {
+  color: var(--ink-faint);
+  font-size: 10px;
+  font-feature-settings: "tnum";
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.55;
+    transform: scale(0.86);
+  }
+}
+
+@keyframes stepFade {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.sessionbar {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: 14px 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--line);
+  background: var(--bg-stage);
+}
+
+.sessionbar.pending,
+.sessionbar.saved {
+  color: var(--signal-live);
+}
+
+.sessionbar.blocked,
+.sessionbar.cancelled {
+  color: var(--signal-pending);
+}
+
+.sessionbar.error {
+  color: var(--signal-error);
+}
+
+.sessionbar .sb-dot {
+  width: 8px;
+  height: 8px;
+  justify-self: center;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor;
+}
+
+.sessionbar.saved .sb-dot {
+  animation: sbFade 1.6s var(--ease-in-out) 1.4s forwards;
+}
+
+@keyframes sbFade {
+  to {
+    opacity: 0.35;
+    box-shadow: none;
+  }
+}
+
+.sessionbar .sb-msg {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+  overflow: hidden;
+  color: var(--ink-strong);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sessionbar.error .sb-msg {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.sessionbar .sb-hint {
+  color: var(--ink-soft);
+  font-size: 10px;
+  font-weight: var(--weight-reg);
+}
+
+.reply {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: 14px 1fr auto;
+  align-items: start;
+  gap: 10px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--line);
+  background: var(--bg-stage);
+}
+
+.reply .reply-mark {
+  justify-self: center;
+  color: var(--ink-faint);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.reply .reply-text {
+  display: -webkit-box;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--ink-200);
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.reply.expanded .reply-text {
+  display: block;
+  max-height: 168px;
+  overflow-y: auto;
+  -webkit-line-clamp: unset;
+}
+
+.reply .reply-toggle {
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: var(--weight-med);
+  letter-spacing: var(--tracking-caps);
+  line-height: 1.8;
+  padding: 0 4px;
+  text-transform: uppercase;
+  transition: color var(--motion-fast) var(--ease);
+}
+
+.reply .reply-toggle:hover {
+  color: var(--signal-live);
+}
+
+.turn-metrics {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 4px 14px 4px 38px;
+  border-top: 1px solid var(--line);
+  background: var(--bg-stage);
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
+}
+
+.reply + .turn-metrics {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.btn {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink-200);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: var(--weight-med);
+  letter-spacing: 0.02em;
+  padding: 4px 12px;
+  transition: background var(--motion-base) var(--ease),
+    border-color var(--motion-base) var(--ease),
+    color var(--motion-base) var(--ease);
+}
+
+.btn:hover {
+  border-color: var(--ink-600);
+  background: var(--bg-elevated);
+  color: var(--ink-100);
+}
+
+.btn:active {
+  background: var(--bg-pressed);
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.32;
+}
+
+.btn-primary {
+  border-color: var(--ink-100);
+  background: var(--ink-100);
+  color: var(--bg-stage);
+}
+
+.btn-primary:hover {
+  border-color: var(--ink-100);
+  background: var(--ink-100);
+  color: var(--bg-stage);
+}
+
+.btn-danger {
+  border-color: rgba(255, 106, 122, 0.35);
+  color: var(--signal-error);
+}
+
+.btn-danger:hover {
+  border-color: var(--signal-error);
+  background: var(--signal-error-tint);
+  color: var(--signal-error);
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--ink-soft);
+}
+
+.btn-ghost:hover {
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink-200);
+}
+
+.composer-wrap {
+  flex: 0 0 auto;
+  padding: 8px 12px 10px;
+  border-top: 1px solid var(--line);
+  background: var(--bg-stage);
+}
+
+.composer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px;
+  background: transparent;
+  border: 0;
+}
+
+.composer .prompt {
+  color: var(--signal-live);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: var(--weight-med);
+  line-height: 1.4;
+}
+
+.composer textarea {
+  font-family: var(--font-mono);
+  display: block;
+  flex: 1;
+  height: 24px;
+  margin: 0;
+  padding: 3px 0;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--ink-200);
+  caret-color: var(--signal-live);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.4;
+  outline: none;
+  resize: none;
+}
+
+.composer textarea:focus,
+.composer textarea:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.composer textarea::-webkit-scrollbar {
+  display: none;
+}
+
+.composer textarea::placeholder {
+  color: var(--ink-faint);
+}
+
+.composer .send {
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: var(--weight-med);
+  letter-spacing: var(--tracking-caps);
+  outline: 0;
+  padding: 2px 4px;
+  text-transform: uppercase;
+  transition: color var(--motion-fast) var(--ease);
+  user-select: none;
+}
+
+.composer .send:hover:not(:disabled) {
+  color: var(--signal-live);
+}
+
+.composer .send:disabled,
+.composer .send[aria-disabled="true"] {
+  background: transparent;
+  cursor: not-allowed;
+  opacity: 0.32;
+}

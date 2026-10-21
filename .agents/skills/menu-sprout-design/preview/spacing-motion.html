@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Motion</title>
+<link rel="stylesheet" href="card.css">
+<style>
+  .stack { display: flex; flex-direction: column; gap: 6px; }
+  .row {
+    display: grid;
+    grid-template-columns: 130px 1fr 1fr;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--line-faint);
+    border-radius: var(--radius-sm);
+  }
+  .row .speed { font-size: 12px; color: var(--ink-strong); }
+  .row .what  { font-size: 12px; color: var(--ink-muted); }
+  .row .ease  { font-size: 11px; color: var(--ink-faint); }
+  .caret-demo {
+    display: inline-block;
+    width: 9px; height: 14px;
+    background: var(--ink-strong);
+    margin-left: 8px;
+    vertical-align: -2px;
+    animation: blink 1.1s steps(2, start) infinite;
+  }
+  @keyframes blink { to { visibility: hidden; } }
+</style>
+</head>
+<body>
+<div class="card">
+  <span class="label">motion · snappier than warm-paper · ease-out · no springs</span>
+  <div class="stack">
+    <div class="row"><span class="speed">80 ms · fast</span><span class="what">hover, dot pulse</span><span class="ease">ease-out</span></div>
+    <div class="row"><span class="speed">160 ms · base</span><span class="what">segment toggle, button press</span><span class="ease">ease-out</span></div>
+    <div class="row"><span class="speed">280 ms · slow</span><span class="what">popover height grow, RunStrip in/out</span><span class="ease">ease-in-out</span></div>
+    <div class="row"><span class="speed">1100 ms · blink</span><span class="what">composer caret <span class="caret-demo"></span></span><span class="ease">steps(2, start)</span></div>
+  </div>
+</div>
+</body>
+</html>

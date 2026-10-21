@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ink — white at alpha</title>
+<link rel="stylesheet" href="card.css">
+<style>
+  .grid { display: flex; flex-direction: column; gap: 1px; }
+  .row {
+    display: grid;
+    grid-template-columns: 120px 80px 80px 1fr;
+    align-items: center;
+    padding: 10px 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--line-faint);
+    gap: 12px;
+  }
+  .alpha { font-size: 12px; color: var(--ink-soft); }
+  .sample { font-family: var(--font-mono); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <span class="label">ink · always white, never #FFF directly, alpha is the system</span>
+  <div class="grid">
+    <div class="row"><span class="swatch-name">--ink-100</span><span class="alpha">96%</span><span class="alpha">value</span><span class="sample" style="color:rgba(255,255,255,0.96)">72%</span></div>
+    <div class="row"><span class="swatch-name">--ink-200</span><span class="alpha">86%</span><span class="alpha">primary</span><span class="sample" style="color:rgba(255,255,255,0.86)">Module title text</span></div>
+    <div class="row"><span class="swatch-name">--ink-300</span><span class="alpha">65%</span><span class="alpha">body</span><span class="sample" style="color:rgba(255,255,255,0.65)">Body copy in the popover.</span></div>
+    <div class="row"><span class="swatch-name">--ink-400</span><span class="alpha">48%</span><span class="alpha">caption</span><span class="sample" style="color:rgba(255,255,255,0.48)">secondary · caption</span></div>
+    <div class="row"><span class="swatch-name">--ink-500</span><span class="alpha">34%</span><span class="alpha">label</span><span class="sample label" style="color:rgba(255,255,255,0.34)">TRACKED CAPS</span></div>
+    <div class="row"><span class="swatch-name">--ink-600</span><span class="alpha">22%</span><span class="alpha">placeholder</span><span class="sample" style="color:rgba(255,255,255,0.22)">talk to the sprout</span></div>
+    <div class="row"><span class="swatch-name">--ink-700</span><span class="alpha">12%</span><span class="alpha">solid line</span><span class="sample" style="border-top:1px solid rgba(255,255,255,0.12);width:120px;height:0;align-self:center"></span></div>
+    <div class="row"><span class="swatch-name">--ink-800</span><span class="alpha">7%</span><span class="alpha">dashed line</span><span class="sample" style="border-top:1px dashed rgba(255,255,255,0.07);width:120px;height:0;align-self:center"></span></div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,504 @@
+import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { pathToFileURL } from "node:url";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  createBackgroundTaskSource,
+  createMenuBarItemSource,
+  createServerActionRegistry,
+  createServerModuleLoader,
+  rewriteLocalServerActionImports,
+} from "../src/main/server-action-registry";
+import { compileExtensionModule } from "../src/main/extension-module-compiler";
+
+describe("server action registry", () => {
+  const tempDirs: string[] = [];
+
+  afterEach(async () => {
+    await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
+  });
+
+  it("loads extension-owned server actions and invokes them through an extension/action id", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "menu-sprout-actions-"));
+    tempDirs.push(rootDir);
+    const actionPath = join(rootDir, "extensions", "demo", "server.mjs");
+    await mkdir(dirname(actionPath), { recursive: true });
+    await writeFile(
+      actionPath,
+      `export const actions = {
+        ping: async (input, context) => ({ input, rootDir: context.rootDir })
+      };`,
+    );
+    const registry = createServerActionRegistry({ rootDir });
+
+    await expect(registry.list()).resolves.toContainEqual({
+      id: "demo.ping",
+      extensionId: "demo",
+      action: "ping",
+    });
+    await expect(registry.invoke("demo", "ping", { ok: true })).resolves.toEqual({
+      input: { ok: true },
+      rootDir,
+    });
+  });
+
+  it("reloads changed server action modules without recreating the registry", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "menu-sprout-actions-"));
+    tempDirs.push(rootDir);
+    const actionPath = join(rootDir, "extensions", "demo", "server.mjs");
+    await mkdir(dirname(actionPath), { recursive: true });
+    await writeFile(actionPath, `export const actions = { ping: () => "first" };`);
+    const registry = createServerActionRegistry({ rootDir });
+
+    await expect(registry.invoke("demo", "ping")).resolves.toBe("first");
+
+    await writeFile(actionPath, `export const actions = { ping: () => "second" };`);
+
+    await expect(registry.invoke("demo", "ping")).resolves.toBe("second");
+  });
+
+  it("reuses one module instance across invokes so module-scope state persists while the source is unchanged", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "menu-sprout-actions-"));
+    tempDirs.push(rootDir);
+    const actionPath = join(rootDir, "extensions", "counter", "server.mjs");
+    await mkdir(dirname(actionPath), { recursive: true });
+    await writeFile(actionPath, `let count = 0; export const actions = { next: () => ++count };`);
+    const registry = createServerActionRegistry({ rootDir });
+
+    await expect(registry.invoke("counter", "next")).resolves.toBe(1);
+    await expect(registry.invoke("counter", "next")).resolves.toBe(2);
+    await expect(registry.invoke("counter", "next")).resolves.toBe(3);
+  });
+
+  it("loads a fresh module with reset state after the source changes", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "menu-sprout-actions-"));
+    tempDirs.push(rootDir);
+    const actionPath = join(rootDir, "extensions", "counter", "server.mjs");
+    await mkdir(dirname(actionPath), { recursive: true });
+    await writeFile(actionPath, `let count = 0; export const actions = { next: () => ++count };`);
+    const registry = createServerActionRegistry({ rootDir });
+
+    await expect(registry.invoke("counter", "next")).resolves.toBe(1);
+    await expect(registry.invoke("counter", "next")).resolves.toBe(2);
+
+    await writeFile(actionPath, `let count = 100; export const actions = { next: () => ++count };`);
+
+    await expect(registry.invoke("counter", "next")).resolves.toBe(101);
+  });
+
+  it("loads a fresh module when changed source reverts to previously imported contents", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "menu-sprout-actions-"));
+    tempDirs.push(rootDir);
+    const actionPath = join(rootDir, "extensions", "counter", "server.mjs");
+    const firstSource = `let count = 0; export const actions = { next: () => ++count };`;
+    await mkdir(dirname(actionPath), { recursive: true });
+    await writeFile(actionPath, firstSource);
+    const registry = createServerActionRegistry({ rootDir });
+
+    await expect(registry.invoke("counter", "next")).resolves.toBe(1);
+    await expect(registry.invoke("counter", "next")).resolves.toBe(2);
+
+    await writeFile(actionPath, `let count = 100; export const actions = { next: () => ++count };`);
+    await expect(registry.invoke("counter", "next")).resolves.toBe(101);
+
+    await writeFile(actionPath, firstSource);
+
+    await expect(registry.invoke("counter", "next")).resolves.toBe(1);
+  });
+
+  it("loads fresh local dependency modules when changed helper source reverts to previously imported contents", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "menu-sprout-actions-"));
+    tempDirs.push(rootDir);
+    const actionPath = join(rootDir, "extensions", "counter", "server.ts");
+    const helperPath = join(rootDir, "extensions", "counter", "helper.ts");
+    const firstHelperSource = `let count = 0; export function next() { return ++count; }`;
+    await mkdir(dirname(actionPath), { recursive: true });
+    await writeFile(actionPath, `import { next } from "./helper"; export const actions = { next };`);
+    await writeFile(helperPath, firstHelperSource);
+    const registry = createServerActionRegistry({ rootDir });
+
+    await expect(registry.invoke("counter", "next")).resolves.toBe(1);
+    await expect(registry.invoke("counter", "next")).resolves.toBe(2);
+
+    await writeFile(helperPath, `let count = 100; export function next() { return ++count; }`);
+    await expect(registry.invoke("counter", "next")).resolves.toBe(101);
+
+    await writeFile(helperPath, firstHelperSource);
+
+    await expect(registry.invoke("counter", "next")).resolves.toBe(1);
+  });
+
+  it("skips recompiling a server module on repeated loads while it is unchanged", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "menu-sprout-actions-"));
+    tempDirs.push(rootDir);
+    const actionPath = join(rootDir, "extensions", "demo", "server.ts");
+    await mkdir(dirname(actionPath), { recursive: true });
+    await writeFile(actionPath, `export const actions = { ping: () => "ok" };`);
+
+    const { compileExtensionModule } = await import("../src/main/extension-module-compiler");
+    const compile = vi.fn(compileExtensionModule);
+    const loader = createServerModuleLoader({ compile });
+
+    await loader.load(actionPath, rootDir);
+    await loader.load(actionPath, rootDir);
+    expect(compile).toHaveBeenCalledTimes(1);
+
+    await writeFile(actionPath, `export const actions = { ping: () => "changed" };`);
+
+    await loader.load(actionPath, rootDir);
+    expect(compile).toHaveBeenCalledTimes(2);
+  });
+
+  it("coalesces concurrent loads of the same uncached server module", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "menu-sprout-actions-"));
+    tempDirs.push(rootDir);
+    const actionPath = join(rootDir, "extensions", "demo", "server.ts");
+    await mkdir(dirname(actionPath), { recursive: true });
+    await writeFile(actionPath, `export const actions = { ping: () => "ok" };`);
+
+    const outputPath = join(rootDir, "compiled", "server.mjs");
+    const moduleUrl = pathToFileURL(outputPath).href;
+    const compile = vi.fn(async () => {
+      await mkdir(dirname(outputPath), { recursive: true });
+      await writeFile(outputPath, `export const actions = { ping: () => "compiled" };`);
+      return {
+        hash: "hash",
+        outputDir: dirname(outputPath),
+        outputPath,
+        moduleUrl,
+        sourceFiles: [actionPath],
+        sourceSignature: await testSourceSignature(actionPath),
+      };
+    });
+    const importModule = vi.fn(async () => ({ actions: { ping: () => "ok" } }));
+    const loader = createServerModuleLoader({ compile, importModule });
+
+    const [first, second] = await Promise.all([loader.load(actionPath, rootDir), loader.load(actionPath, rootDir)]);
+
+    expect(first.module).toBe(second.module);
+    expect(compile).toHaveBeenCalledTimes(1);
+    expect(importModule).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not cache a compiled server module when source changes before the cache signature is recorded", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "menu-sprout-actions-"));
+    tempDirs.push(rootDir);
+    const actionPath = join(rootDir, "extensions", "demo", "server.ts");
+    await mkdir(dirname(actionPath), { recursive: true });
+    await writeFile(actionPath, `export const actions = { ping: () => "old" };`);
+
+    let compileCount = 0;
+    const outputPath = join(rootDir, "compiled", "server.mjs");
+    const moduleUrl = pathToFileURL(outputPath).href;
+    const compile = vi.fn(async () => {
+      compileCount += 1;
+      const sourceSignature = await testSourceSignature(actionPath);
+      if (compileCount === 1) {
+        await writeFile(actionPath, `export const actions = { ping: () => "new" };`);
+      }
+      await mkdir(dirname(outputPath), { recursive: true });
+      await writeFile(outputPath, `export const actions = { ping: () => "compiled" };`);
+      return {
+        hash: `hash-${compileCount}`,
+        outputDir: dirname(outputPath),
+        outputPath,
+        moduleUrl,
+        sourceFiles: [actionPath],
+        sourceSignature,
+      };
+    });
+    const importModule = vi
+      .fn()
+      .mockResolvedValueOnce({ actions: { ping: () => "old" } })
+      .mockResolvedValueOnce({ actions: { ping: () => "new" } });
+    const loader = createServerModuleLoader({ compile, importModule });
+
+    const first = await loader.load(actionPath, rootDir);
+    const second = await loader.load(actionPath, rootDir);
+    const firstActions = first.module.actions as { ping: (input: unknown, context: { rootDir: string }) => string };
+    const secondActions = second.module.actions as { ping: (input: unknown, context: { rootDir: string }) => string };
+
+    expect(firstActions.ping(undefined, { rootDir })).toBe("new");
+    expect(secondActions.ping(undefined, { rootDir })).toBe("new");
+    expect(compile).toHaveBeenCalledTimes(2);
+  });
+
+  async function testSourceSignature(filePath: string): Promise<string> {
+    const stats = await stat(filePath);
+    return `${filePath}:${stats.size}:${stats.mtimeMs}`;
+  }
+
+  it("loads TypeScript extension server action files that agents are expected to create", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "menu-sprout-actions-"));
+    tempDirs.push(rootDir);
+    const actionPath = join(rootDir, "extensions", "typed", "server.ts");
+    await mkdir(dirname(actionPath), { recursive: true });
+    await writeFile(
+      actionPath,
+      `export const actions = {
+        greet: (input: { name: string }) => ({ message: \`hello \${input.name}\` })
+      };`,
+    );
+    const registry = createServerActionRegistry({ rootDir });
+
+    await expect(registry.invoke("typed", "greet", { name: "Ada" })).resolves.toEqual({
+      message: "hello Ada",
+    });
+  });
+
+  it("loads server actions with extensionless local TypeScript imports", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "menu-sprout-actions-"));
+    tempDirs.push(rootDir);
+    const actionPath = join(rootDir, "extensions", "codex-quota", "server.ts");
+    const helperPath = join(rootDir, "extensions", "codex-quota", "codex-quota.ts");
+    await mkdir(dirname(actionPath), { recursive: true });
+    await writeFile(helperPath, `export function readQuota() { return { remaining: 72 }; }`);
+    await writeFile(
+      actionPath,
+      `import { readQuota } from "./codex-quota";
+      export const actions = { getQuota: () => readQuota() };`,
+    );
+    const registry = createServerActionRegistry({ rootDir });
+
+    await expect(registry.invoke("codex-quota", "getQuota")).resolves.toEqual({ remaining: 72 });
+  });
+
+  it("rejects unsupported external imports from generated server actions", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "menu-sprout-actions-"));
+    tempDirs.push(rootDir);
+    const actionPath = join(rootDir, "extensions", "external", "server.ts");
+    await mkdir(dirname(actionPath), { recursive: true });
+    await writeFile(actionPath, `import slugify from "slugify"; export const actions = { slugify };`);
+    const registry = createServerActionRegistry({ rootDir });
+
+    await expect(registry.list()).rejects.toThrow('Unsupported server import "slugify" in external/server.ts');
+  });
+
+  it("rewrites extensionless local imports so Node ESM can load server actions", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "menu-sprout-actions-"));
+    tempDirs.push(rootDir);
+    const sourcePath = join(rootDir, "extensions", "codex-quota", "server.ts");
+    const helperPath = join(rootDir, "extensions", "codex-quota", "codex-quota.ts");
+    await mkdir(dirname(sourcePath), { recursive: true });
+    await writeFile(helperPath, `export const value = 1;`);
+
+    const rewritten = await rewriteLocalServerActionImports(
+      `import { value } from "./codex-quota";
+      export { value } from "./codex-quota";
+      import untouched from "react";`,
+      sourcePath,
+    );
+
+    expect(rewritten).toContain(`from "./codex-quota.mjs"`);
+    expect(rewritten).toContain(`from "react"`);
+  });
+
+  it("discovers background tasks exported from extension server modules", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "menu-sprout-bg-"));
+    tempDirs.push(rootDir);
+    const withTask = join(rootDir, "extensions", "pulse", "server.ts");
+    const withoutTask = join(rootDir, "extensions", "plain", "server.ts");
+    await mkdir(dirname(withTask), { recursive: true });
+    await mkdir(dirname(withoutTask), { recursive: true });
+    await writeFile(
+      withTask,
+      `export const background = { intervalMs: 90000, runOnStart: false, run: async () => undefined };`,
+    );
+    await writeFile(withoutTask, `export const actions = { ping: () => "ok" };`);
+
+    const source = createBackgroundTaskSource({ rootDir });
+    const tasks = await source.list();
+
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0]).toMatchObject({ extensionId: "pulse", intervalMs: 90000, runOnStart: false });
+    expect(tasks[0]?.run).toBeTypeOf("function");
+  });
+
+  it("keeps discovering valid background tasks when one server module fails to load", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "menu-sprout-bg-"));
+    tempDirs.push(rootDir);
+    const validTask = join(rootDir, "extensions", "pulse", "server.ts");
+    const brokenTask = join(rootDir, "extensions", "broken", "server.ts");
+    await mkdir(dirname(validTask), { recursive: true });
+    await mkdir(dirname(brokenTask), { recursive: true });
+    await writeFile(validTask, `export const background = { intervalMs: 90000, run: async () => undefined };`);
+    await writeFile(brokenTask, `import slugify from "slugify"; export const background = { intervalMs: 90000, run: slugify };`);
+
+    const onError = vi.fn();
+    const source = createBackgroundTaskSource({ rootDir, onError });
+
+    await expect(source.list()).resolves.toMatchObject([{ extensionId: "pulse", intervalMs: 90000 }]);
+    expect(onError).toHaveBeenCalledWith("broken", expect.any(Error));
+  });
+
+  it("ignores background exports with a missing or invalid interval", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "menu-sprout-bg-"));
+    tempDirs.push(rootDir);
+    const actionPath = join(rootDir, "extensions", "broken", "server.ts");
+    await mkdir(dirname(actionPath), { recursive: true });
+    await writeFile(actionPath, `export const background = { run: async () => undefined };`);
+
+    const source = createBackgroundTaskSource({ rootDir });
+
+    await expect(source.list()).resolves.toEqual([]);
+  });
+
+  it("runs a discovered background task that persists to the shared database", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "menu-sprout-bg-"));
+    tempDirs.push(rootDir);
+    const actionPath = join(rootDir, "extensions", "counter", "server.ts");
+    await mkdir(dirname(actionPath), { recursive: true });
+    await writeFile(
+      actionPath,
+      `export const background = {
+        intervalMs: 90000,
+        run: (ctx) => {
+          ctx.db.exec("CREATE TABLE IF NOT EXISTS counter_ticks (id INTEGER PRIMARY KEY)");
+          ctx.db.run("INSERT INTO counter_ticks DEFAULT VALUES");
+        },
+      };`,
+    );
+
+    const { createExtensionDatabase } = await import("../src/main/extension-database");
+    const { createBackgroundTaskScheduler } = await import("../src/main/background-task-scheduler");
+    const db = createExtensionDatabase(":memory:");
+    const scheduler = createBackgroundTaskScheduler({
+      source: createBackgroundTaskSource({ rootDir }),
+      context: { rootDir, db, notify: () => undefined },
+      minIntervalMs: 10,
+    });
+
+    await scheduler.start(); // runOnStart defaults true
+    await vi.waitFor(() => expect(db.get<{ c: number }>("SELECT COUNT(*) AS c FROM counter_ticks")?.c).toBe(1));
+    scheduler.stop();
+    db.close();
+  });
+
+  it("passes a notify capability to background tasks", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "menu-sprout-bg-"));
+    tempDirs.push(rootDir);
+    const actionPath = join(rootDir, "extensions", "alert", "server.ts");
+    await mkdir(dirname(actionPath), { recursive: true });
+    await writeFile(
+      actionPath,
+      `export const background = { intervalMs: 90000, run: (ctx) => ctx.notify({ title: "hi", body: "there" }) };`,
+    );
+
+    const { createExtensionDatabase } = await import("../src/main/extension-database");
+    const { createBackgroundTaskScheduler } = await import("../src/main/background-task-scheduler");
+    const notify = vi.fn();
+    const scheduler = createBackgroundTaskScheduler({
+      source: createBackgroundTaskSource({ rootDir }),
+      context: { rootDir, db: createExtensionDatabase(":memory:"), notify },
+      minIntervalMs: 10,
+    });
+
+    await scheduler.start();
+    await vi.waitFor(() => expect(notify).toHaveBeenCalledWith({ title: "hi", body: "there" }));
+    scheduler.stop();
+  });
+
+  it("throws a clear error for unknown server actions", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "menu-sprout-actions-"));
+    tempDirs.push(rootDir);
+    const registry = createServerActionRegistry({ rootDir });
+
+    await expect(registry.invoke("missing", "action")).rejects.toThrow("Unknown server action: missing.action");
+  });
+});
+
+describe("menu-bar item discovery", () => {
+  const tempDirs: string[] = [];
+
+  afterEach(async () => {
+    await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
+  });
+
+  async function writeServer(rootDir: string, extensionId: string, source: string) {
+    const filePath = join(rootDir, "extensions", extensionId, "server.ts");
+    await mkdir(dirname(filePath), { recursive: true });
+    await writeFile(filePath, source);
+    return filePath;
+  }
+
+  it("discovers `export const menuBar` with its extension folder", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "menu-sprout-menubar-"));
+    tempDirs.push(rootDir);
+    await writeServer(rootDir, "clock", `export const menuBar = { intervalMs: 2000, run: () => ({ text: "12:00" }) };`);
+    await writeServer(rootDir, "plain", `export const actions = { ping: () => "pong" };`);
+
+    const items = await createMenuBarItemSource({ rootDir }).list();
+
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      extensionId: "clock",
+      intervalMs: 2000,
+      extensionDir: join(rootDir, "extensions", "clock"),
+    });
+    expect(await items[0]?.run({} as never)).toEqual({ text: "12:00" });
+  });
+
+  it("ignores a menuBar export with a missing run function or invalid interval", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "menu-sprout-menubar-"));
+    tempDirs.push(rootDir);
+    await writeServer(rootDir, "no-run", `export const menuBar = { intervalMs: 2000 };`);
+    await writeServer(rootDir, "no-interval", `export const menuBar = { run: () => ({ text: "x" }) };`);
+    await writeServer(rootDir, "bad-interval", `export const menuBar = { intervalMs: -5, run: () => ({ text: "x" }) };`);
+
+    await expect(createMenuBarItemSource({ rootDir }).list()).resolves.toEqual([]);
+  });
+
+  it("stops listing an item once its server.ts or menuBar export is removed", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "menu-sprout-menubar-"));
+    tempDirs.push(rootDir);
+    const filePath = await writeServer(rootDir, "clock", `export const menuBar = { intervalMs: 2000, run: () => null };`);
+    const source = createMenuBarItemSource({ rootDir });
+
+    await expect(source.list()).resolves.toHaveLength(1);
+
+    await writeFile(filePath, `export const actions = {};`);
+    await expect(source.list()).resolves.toEqual([]);
+
+    await writeFile(filePath, `export const menuBar = { intervalMs: 2000, run: () => null };`);
+    await expect(source.list()).resolves.toHaveLength(1);
+
+    await rm(filePath);
+    await expect(source.list()).resolves.toEqual([]);
+  });
+
+  it("keeps discovering valid items when one server module fails to load", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "menu-sprout-menubar-"));
+    tempDirs.push(rootDir);
+    await writeServer(rootDir, "good", `export const menuBar = { intervalMs: 2000, run: () => ({ text: "ok" }) };`);
+    await writeServer(rootDir, "broken", `import slugify from "slugify"; export const menuBar = { intervalMs: 2000, run: slugify };`);
+
+    const onError = vi.fn();
+    await expect(createMenuBarItemSource({ rootDir, onError }).list()).resolves.toMatchObject([{ extensionId: "good" }]);
+    expect(onError).toHaveBeenCalledWith("broken", expect.any(Error));
+  });
+
+  it("compiles a new server.ts once when menu-bar and background sources share a loader", async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), "menu-sprout-menubar-"));
+    tempDirs.push(rootDir);
+    await writeServer(
+      rootDir,
+      "fresh",
+      `export const menuBar = { intervalMs: 2000, run: () => ({ text: "new" }) };
+      export const background = { intervalMs: 60000, run: () => undefined };`,
+    );
+    const compile = vi.fn(compileExtensionModule);
+    const loader = createServerModuleLoader({ cacheDir: join(rootDir, "cache"), compile });
+    const onError = vi.fn();
+
+    const [tasks, items] = await Promise.all([
+      createBackgroundTaskSource({ rootDir, loader, onError }).list(),
+      createMenuBarItemSource({ rootDir, loader, onError }).list(),
+    ]);
+
+    expect(tasks).toMatchObject([{ extensionId: "fresh" }]);
+    expect(items).toMatchObject([{ extensionId: "fresh" }]);
+    expect(compile).toHaveBeenCalledTimes(1);
+    expect(onError).not.toHaveBeenCalled();
+  });
+});

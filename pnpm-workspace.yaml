@@ -1,0 +1,21 @@
+allowBuilds:
+  '@google/genai': false
+  electron: true
+  electron-winstaller: false
+  esbuild: true
+  protobufjs: false
+
+overrides:
+  postcss: ^8.5.15
+
+# Install macOS prebuilt native binaries for both architectures so the
+# universal electron-builder package runs on Intel and Apple Silicon.
+# "current" keeps the host platform's binaries for dev/CI on other OSes.
+supportedArchitectures:
+  os:
+    - current
+    - darwin
+  cpu:
+    - current
+    - x64
+    - arm64

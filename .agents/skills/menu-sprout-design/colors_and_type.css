@@ -1,0 +1,291 @@
+@charset "UTF-8";
+
+/* =================================================================
+   Menu Sprout -- Colors & Type  (Monochrome Lab direction)
+   =================================================================
+   Terminal-elegant. Near-black canvas, white type at varying alphas,
+   one mint signal color, mono type everywhere. Hairlines, dashed
+   dividers, blinking caret. Reads as a calm command-line surface
+   that happens to live in the macOS menu bar.
+
+   Use the *role* tokens (--bg, --ink, --signal) in component code.
+   Raw tokens at the top are the source of truth.
+   ================================================================= */
+
+/* Fonts ----------------------------------------------------------- */
+/* Substitution flagged in README. JetBrains Mono is the primary
+   family. Inter Tight is used ONLY where prose needs to breathe
+   (long copy in cards, marketing surfaces). Avoid Inter Tight for
+   anything that fits the popover surface itself.                     */
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Inter+Tight:wght@300;400;500;600&display=swap");
+
+:root {
+  /* --- Raw palette --------------------------------------------- */
+  /* Background layers -- near-black, never pure #000.             */
+  --bg-void:     #060607;   /* the "outside" of the popover       */
+  --bg-stage:    #0B0B0C;   /* primary canvas inside the popover  */
+  --bg-surface:  #101012;   /* card / module background           */
+  --bg-elevated: #16161A;   /* composer field, hover state        */
+  --bg-pressed:  #1C1C21;   /* mousedown                          */
+
+  /* Ink -- white at progressively lower alpha. Never use #FFF      */
+  /* directly; the alpha is part of the system. The values below   */
+  /* are pre-mixed against --bg-stage for snapshot tools that      */
+  /* don't honor alpha; in CSS we ALWAYS use the rgba() form.       */
+  --ink-100: rgba(255, 255, 255, 0.96);  /* values, hero numbers   */
+  --ink-200: rgba(255, 255, 255, 0.86);  /* primary text           */
+  --ink-300: rgba(255, 255, 255, 0.65);  /* body                   */
+  --ink-400: rgba(255, 255, 255, 0.48);  /* secondary, captions    */
+  --ink-500: rgba(255, 255, 255, 0.34);  /* tracked-caps labels    */
+  --ink-600: rgba(255, 255, 255, 0.22);  /* placeholders, hints    */
+  --ink-700: rgba(255, 255, 255, 0.12);  /* solid dividers         */
+  --ink-800: rgba(255, 255, 255, 0.07);  /* hover, faint dividers  */
+  --ink-900: rgba(255, 255, 255, 0.04);  /* lowest visible tint    */
+
+  /* Signal colors -- used as DOTS / GLOWS / SINGLE WORDS only.    */
+  /* Never as fills, never as backgrounds of buttons.               */
+  --signal-live:    #6AE3B6;   /* live, success, ok                */
+  --signal-live-glow: 0 0 6px rgba(106, 227, 182, 0.65);
+  --signal-pending: #FFD86B;   /* pending session, attention       */
+  --signal-pending-glow: 0 0 6px rgba(255, 216, 107, 0.55);
+  --signal-error:   #FF6A7A;   /* refused, destructive, expired    */
+  --signal-error-glow: 0 0 6px rgba(255, 106, 122, 0.55);
+
+  /* Soft tints of each signal -- for the rare full-card moment.    */
+  --signal-live-tint:    rgba(106, 227, 182, 0.10);
+  --signal-pending-tint: rgba(255, 216, 107, 0.10);
+  --signal-error-tint:   rgba(255, 106, 122, 0.10);
+
+  /* --- Semantic / role tokens ---------------------------------- */
+  --bg:           var(--bg-stage);
+  --bg-card:      var(--bg-surface);
+  --bg-input:     var(--bg-elevated);
+
+  --ink:          var(--ink-200);            /* default text       */
+  --ink-strong:   var(--ink-100);            /* values, headings   */
+  --ink-muted:    var(--ink-300);            /* body copy          */
+  --ink-soft:     var(--ink-400);            /* captions           */
+  --ink-label:    var(--ink-500);            /* tracked-caps key   */
+  --ink-faint:    var(--ink-600);            /* placeholder        */
+
+  --line:         var(--ink-700);            /* solid hairline     */
+  --line-faint:   var(--ink-800);            /* dashed dividers    */
+
+  --signal:           var(--signal-live);
+  --signal-glow:      var(--signal-live-glow);
+  --signal-warn:      var(--signal-pending);
+  --signal-danger:    var(--signal-error);
+
+  /* Focus ring honors the mint signal, not generic blue.           */
+  --focus-ring: 0 0 0 1px rgba(106, 227, 182, 0.5),
+                0 0 0 4px rgba(106, 227, 182, 0.18);
+
+  /* --- Typography ---------------------------------------------- */
+  --font-mono:    "JetBrains Mono", ui-monospace, "SF Mono", Menlo,
+                  "Cascadia Mono", Consolas, monospace;
+  --font-prose:   "Inter Tight", -apple-system, BlinkMacSystemFont,
+                  "SF Pro Text", "Segoe UI", sans-serif;
+
+  /* Scale -- mono runs slightly narrower than sans, so values feel */
+  /* smaller for the same px. Numbers are quoted in px equivalents. */
+  --fs-xxs:   0.6875rem;    /* 11px  -- tracked-caps keys, footer  */
+  --fs-xs:    0.75rem;      /* 12px  -- meta, hints, footer        */
+  --fs-sm:    0.8125rem;    /* 13px  -- body, button copy          */
+  --fs-base:  0.875rem;     /* 14px  -- module title, default      */
+  --fs-md:    1rem;         /* 16px  -- subhead                    */
+  --fs-lg:    1.125rem;     /* 18px  -- inline value mid           */
+  --fs-xl:    1.5rem;       /* 24px  -- inline value lg            */
+  --fs-2xl:   1.75rem;      /* 28px  -- hero value                 */
+  --fs-3xl:   2.25rem;      /* 36px  -- hero value xl              */
+
+  --lh-tight: 1;
+  --lh-snug:  1.2;
+  --lh-body:  1.45;
+
+  /* Letter-spacing -- mono needs tight headings, wide caps.        */
+  --tracking-value:  -0.04em;   /* big numbers                     */
+  --tracking-tight:  -0.01em;   /* titles                          */
+  --tracking-normal: 0;
+  --tracking-caps:   0.18em;    /* tracked-caps key labels         */
+  --tracking-foot:   0.20em;    /* footer hints                    */
+
+  /* Weights. Mono looks more "futuristic" at 300 for big numbers,  */
+  /* 400 for body, 500 for buttons. Never 700 in this system.       */
+  --weight-light:  300;
+  --weight-reg:    400;
+  --weight-med:    500;
+  --weight-semi:   600;
+
+  /* --- Spacing / radius / shadow ------------------------------- */
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 6px;
+  --space-4: 8px;
+  --space-5: 12px;
+  --space-6: 16px;
+  --space-7: 20px;
+  --space-8: 24px;
+  --space-9: 32px;
+
+  /* Radii are SMALL. Terminal surface = sharper corners.           */
+  --radius-xs:  2px;
+  --radius-sm:  4px;
+  --radius-md:  6px;
+  --radius-lg:  8px;        /* card / module                       */
+  --radius-xl:  10px;       /* popover outer                       */
+  --radius-pill: 999px;     /* prototype/app-shell pill controls   */
+
+  /* Shadows are quiet -- darkness, not depth. The popover floats   */
+  /* over the desktop with one deep void cast, never a stack.       */
+  --shadow-pop:   0 24px 80px rgba(0, 0, 0, 0.65),
+                  0 0 0 0.5px rgba(255, 255, 255, 0.04);
+  --shadow-inset: inset 0 0.5px 0 rgba(255, 255, 255, 0.06);
+
+  --motion-fast: 80ms;
+  --motion-base: 160ms;
+  --motion-slow: 280ms;
+  --ease:        cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+/* =================================================================
+   Base element styles. Mono is the default font; prose only kicks
+   in inside elements that opt-in via .prose.
+   ================================================================= */
+html, body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--fs-base);
+  line-height: var(--lh-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "tnum", "calt";
+}
+
+h1, h2, h3, h4 {
+  margin: 0;
+  color: var(--ink-strong);
+  line-height: var(--lh-tight);
+  font-family: var(--font-mono);
+  font-weight: var(--weight-med);
+  letter-spacing: var(--tracking-tight);
+}
+
+/* h1 = surface title. Mono, low-weight, sentence-case-ish but lower. */
+h1 {
+  font-size: var(--fs-base);
+  font-weight: var(--weight-med);
+}
+
+/* h2 = module title.                                                 */
+h2 {
+  font-size: var(--fs-sm);
+  font-weight: var(--weight-med);
+}
+
+/* h3 = sub-title within a module.                                    */
+h3 {
+  font-size: var(--fs-sm);
+  font-weight: var(--weight-med);
+  color: var(--ink-muted);
+}
+
+p {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
+  text-wrap: pretty;
+}
+
+code, pre {
+  font-family: var(--font-mono);
+  font-size: 1em;
+  color: var(--ink-strong);
+}
+
+kbd {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  padding: 1px 5px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-elevated);
+  color: var(--ink-muted);
+  border: 1px solid var(--line);
+}
+
+/* Tracked-caps label -- the workhorse heading of the whole system.    */
+.label {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xxs);
+  font-weight: var(--weight-reg);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--ink-label);
+}
+
+/* Status word -- mint dot + caps text. The ONLY decorated chip.       */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xxs);
+  font-weight: var(--weight-reg);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--signal);
+}
+.status::before {
+  content: "";
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor;
+}
+.status.warn   { color: var(--signal-warn); }
+.status.danger { color: var(--signal-danger); }
+.status.muted  { color: var(--ink-soft); }
+.status.muted::before { box-shadow: none; opacity: 0.6; }
+
+/* Big numeric value -- light weight, very tight tracking.             */
+.value {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-light);
+  letter-spacing: var(--tracking-value);
+  color: var(--ink-strong);
+  line-height: var(--lh-tight);
+  font-feature-settings: "tnum";
+}
+.value small {
+  font-size: 0.42em;
+  font-weight: var(--weight-reg);
+  letter-spacing: 0;
+  color: var(--ink-soft);
+  margin-left: 2px;
+}
+
+/* Focus state -- single rule, used everywhere.                        */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-sm);
+}
+
+/* Selection -- subtle mint highlight.                                 */
+::selection {
+  background: rgba(106, 227, 182, 0.25);
+  color: var(--ink-strong);
+}
+
+/* Prose escape hatch -- opt in to Inter Tight for long passages.      */
+.prose,
+.prose p,
+.prose li {
+  font-family: var(--font-prose);
+  font-size: var(--fs-sm);
+  line-height: 1.55;
+}
